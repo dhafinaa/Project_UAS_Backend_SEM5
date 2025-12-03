@@ -9,23 +9,33 @@ type PermissionRepository struct {
 }
 
 func (r *PermissionRepository) GetByRole(roleID string) ([]string, error) {
-	rows, err := r.DB.Query(`
-		SELECT p.name 
-		FROM role_permissions rp
-		JOIN permissions p ON p.id = rp.permission_id
+	query := `
+		SELECT p.name
+		FROM permissions p
+		JOIN role_permissions rp ON rp.permission_id = p.id
 		WHERE rp.role_id = $1
-	`, roleID)
+	`
 
+	rows, err := r.DB.Query(query, roleID)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var permissions []string
+
 	for rows.Next() {
 		var perm string
-		rows.Scan(&perm)
+		if err := rows.Scan(&perm); err != nil {
+			return nil, err
+		}
 		permissions = append(permissions, perm)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Jika role punya 0 permission, tetap return [] (tidak error)
 	return permissions, nil
 }

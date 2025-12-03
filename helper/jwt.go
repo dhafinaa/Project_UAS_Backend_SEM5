@@ -1,31 +1,42 @@
 package helper
 
 import (
+	"os"
 	"time"
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var Secret = []byte("SECRET_KEY")
+func GenerateToken(userID string, roleID string, permissions []string) (string, string, error) {
 
-func GenerateTokens(userID string, role string, permissions []string) (string, string) {
+	secret := os.Getenv("JWT_SECRET")
+	refreshSecret := os.Getenv("REFRESH_SECRET")
 
+	// ACCESS TOKEN
 	claims := jwt.MapClaims{
 		"id":          userID,
-		"role":        role,
+		"role":        roleID,
 		"permissions": permissions,
-		"exp":         time.Now().Add(time.Hour * 24).Unix(),
+		"exp":         time.Now().Add(24 * time.Hour).Unix(),
 	}
 
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	accessStr, err := token.SignedString([]byte(secret))
+	if err != nil {
+		return "", "", err
+	}
+
+	// REFRESH TOKEN
 	refreshClaims := jwt.MapClaims{
 		"id":  userID,
-		"exp": time.Now().Add(time.Hour * 24 * 7).Unix(),
+		"exp": time.Now().Add(7 * 24 * time.Hour).Unix(),
 	}
 
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
+	refreshStr, err := refreshToken.SignedString([]byte(refreshSecret))
+	if err != nil {
+		return "", "", err
+	}
 
-	access, _ := accessToken.SignedString(Secret)
-	refresh, _ := refreshToken.SignedString(Secret)
-
-	return access, refresh
+	return accessStr, refreshStr, nil
 }

@@ -1,18 +1,26 @@
 package route
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"github.com/gofiber/fiber/v2"
 
-// Semua endpoint sesuai SRS, tanpa handler
-func RegisterRoutes(app *fiber.App) {
+	"PROJECT_UAS/app/repository"
+	"PROJECT_UAS/app/service"
+	"database/sql"
+)
 
-	// ============================
-	// 4.1 Autentikasi & Otorisasi
-	// ============================
-	app.Post("/auth/login")     // FR-001 Login
-	app.Post("/auth/refresh")   // FR-001 Refresh token
-	app.Post("/auth/logout")    // FR-001 Logout
-	app.Get("/auth/profile")    // FR-001 Profile
+func RegisterRoutes(app *fiber.App, pg *sql.DB) {
 
+	// Init Auth Repository
+	authRepo := repository.NewAuthRepository(pg)
+	authService := service.NewAuthService(authRepo)
+
+	// AUTH ROUTES
+	app.Post("/auth/login", authService.Login)
+	app.Post("/auth/refresh", authService.RefreshToken)
+	app.Post("/auth/logout", authService.Logout)
+	app.Get("/auth/profile", authService.Profile)
+
+	/*
 	// ============================
 	// 4.2 Manajemen Prestasi (Mahasiswa)
 	// ============================
@@ -41,4 +49,5 @@ func RegisterRoutes(app *fiber.App) {
 	// 4.5 Reporting & Analytics
 	// ============================
 	app.Get("/reports/achievements")       // FR-011 Statistics
+	*/
 }

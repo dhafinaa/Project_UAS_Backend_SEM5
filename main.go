@@ -13,17 +13,40 @@ import (
 
 func main() {
 
-	godotenv.Load()
+	// Load ENV
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Warning: .env file not found, using system ENV")
+	}
 
-	db := database.ConnectMongo()
-	_ = db // sementara tidak dipakai, tapi harus tetap connect
+	// ==============================
+	// CONNECT MONGODB (required)
+	// ==============================
+	mongoDB := database.ConnectMongo()
+	_ = mongoDB // nanti dipakai di achievement repo
 
+	// ==============================
+	// CONNECT POSTGRES (required)
+	// ==============================
+	postgresDB := database.ConnectPostgres()
+
+	// ==============================
+	// RUN MIGRATION (mengisi users, roles, dll)
+	// ==============================
+	// database.RunMigration(postgresDB)
+
+	// ==============================
+	// START FIBER APP
+	// ==============================
 	app := fiber.New()
 
-	// Semua endpoint digabung jadi satu
-	route.RegisterRoutes(app)
+	// kirim postgres ke route
+	route.RegisterRoutes(app, postgresDB)
 
-	port := os.Getenv("PORT")
+	// ==============================
+	// RUN SERVER
+	// ==============================
+	port := os.Getenv("APP_PORT")
 	if port == "" {
 		port = "8080"
 	}
