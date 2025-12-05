@@ -1,53 +1,66 @@
 package route
 
 import (
+	"database/sql"
+
 	"github.com/gofiber/fiber/v2"
 
 	"PROJECT_UAS/app/repository"
 	"PROJECT_UAS/app/service"
-	"database/sql"
+	"PROJECT_UAS/middleware"
 )
 
 func RegisterRoutes(app *fiber.App, pg *sql.DB) {
 
-	// Init Auth Repository
+	// Repositories & Services
 	authRepo := repository.NewAuthRepository(pg)
 	authService := service.NewAuthService(authRepo)
 
-	// AUTH ROUTES
-	app.Post("/auth/login", authService.Login)
-	app.Post("/auth/refresh", authService.RefreshToken)
-	app.Post("/auth/logout", authService.Logout)
-	app.Get("/auth/profile", authService.Profile)
+	// Admin repo/service assumed implemented
+	// adminRepo := repository.NewAdminRepository(pg)
+	// adminService := service.NewAdminService(adminRepo)
 
-	/*
-	// ============================
-	// 4.2 Manajemen Prestasi (Mahasiswa)
-	// ============================
-	app.Post("/achievements")             // FR-003 Submit Prestasi
-	app.Put("/achievements/:id/submit")   // FR-004 Submit verifikasi
-	app.Delete("/achievements/:id")       // FR-005 Hapus Prestasi (soft delete)
+	studentService := service.NewStudentService()
+	lecturerService := service.NewLecturerService()
 
-	// ============================
-	// 4.3 Verifikasi Prestasi (Dosen Wali)
-	// ============================
-	app.Get("/advisor/achievements")      // FR-006 View Prestasi Bimbingan
-	app.Put("/achievements/:id/verify")   // FR-007 Verify Prestasi
-	app.Put("/achievements/:id/reject")   // FR-008 Reject Prestasi
+	// AUTH
+	auth := app.Group("/auth")
+	auth.Post("/login", authService.Login)
+	auth.Post("/refresh", authService.RefreshToken)
+	auth.Post("/logout", authService.Logout)
+	auth.Get("/profile", middleware.AuthRequired(authRepo), authService.Profile)
 
-	// ============================
-	// 4.4 Manajemen Sistem (Admin)
-	// ============================
-	app.Post("/admin/users")               // FR-009 Create user
-	app.Get("/admin/users")                // FR-009 List users
-	app.Put("/admin/users/:id")            // FR-009 Update user
-	app.Delete("/admin/users/:id")         // FR-009 Delete user
-	app.Put("/admin/users/:id/role")       // FR-009 Assign role
-	app.Put("/admin/students/:id/advisor") // FR-009 Set advisor
+	// STUDENT (Mahasiswa)
+	student := app.Group("/student",
+		middleware.AuthRequired(authRepo),
+		middleware.RoleRequired("Mahasiswa"),
+	)
+	student.Post("/achievements", middleware.PermissionRequired("achievement.create"), studentService.CreateAchievement)
+	student.Put("/achievements/:id/submit", middleware.PermissionRequired("achievement.submit"), studentService.SubmitAchievement)
+	student.Delete("/achievements/:id", middleware.PermissionRequired("achievement.delete"), studentService.DeleteAchievement)
 
-	// ============================
-	// 4.5 Reporting & Analytics
-	// ============================
-	app.Get("/reports/achievements")       // FR-011 Statistics
-	*/
+	// LECTURER (Dosen Wali)
+	lecturer := app.Group("/lecturer",
+		middleware.AuthRequired(authRepo),
+		middleware.RoleRequired("Dosen Wali"),
+	)
+	lecturer.Get("/advisees", middleware.PermissionRequired("advisee.read"), lecturerService.GetStudentAchievements)
+	lecturer.Put("/achievements/:id/verify", middleware.PermissionRequired("achievement.verify"), lecturerService.VerifyAchievement)
+	lecturer.Put("/achievements/:id/reject", middleware.PermissionRequired("achievement.reject"), lecturerService.RejectAchievement)
+
+	// ADMIN
+	// admin := app.Group("/admin",
+	// 	middleware.AuthRequired(authRepo),
+	// 	middleware.RoleRequired("Admin"),
+	// )
+	// admin.Post("/users", middleware.PermissionRequired("user.manage"), adminService.CreateUser)
+	// admin.Put("/users/:id", middleware.PermissionRequired("user.manage"), adminService.UpdateUser)
+	// admin.Delete("/users/:id", middleware.PermissionRequired("user.manage"), adminService.DeleteUser)
+	// admin.Put("/users/:id/role", middleware.PermissionRequired("user.manage"), adminService.AssignRole)
+
+	// admin.Put("/students/:id/profile", middleware.PermissionRequired("user.manage"), adminService.SetStudentProfile)
+	// admin.Put("/lecturers/:id/profile", middleware.PermissionRequired("user.manage"), adminService.SetLecturerProfile)
+	// admin.Put("/students/:id/advisor", middleware.PermissionRequired("student.assign.advisor"), adminService.SetAdvisor)
+
+	// admin.Get("/reports/achievements", middleware.PermissionRequired("reports.read"), adminService.GenerateAchievementReport)
 }
