@@ -9,7 +9,7 @@ type Achievement struct {
 	Title             string                 `json:"title"`
 	Description       string                 `json:"description"`
 
-	Details           map[string]interface{} `json:"details"`
+	Details           map[string]interface{} `json:"details"`	
 
 	Attachments       []Attachment           `json:"attachments"`
 

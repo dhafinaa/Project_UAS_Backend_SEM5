@@ -7,15 +7,17 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// AuthClaims minimal (tidak menyertakan permissions)
 type AuthClaims struct {
-	ID          string   `json:"id"`
-	Role        string   `json:"role"`
-	Permissions []string `json:"permissions"`
-	jwt.RegisteredClaims
+    ID          string   `json:"id"`
+    Role        string   `json:"role"`
+    Permissions []string `json:"permissions"`
+    jwt.RegisteredClaims
 }
 
-func ParseToken(tokenString string) (*AuthClaims, error) {
 
+// ParseToken parse token dan kembalikan claims (id + role)
+func ParseToken(tokenString string) (*AuthClaims, error) {
 	secret := os.Getenv("JWT_SECRET")
 
 	token, err := jwt.ParseWithClaims(tokenString, &AuthClaims{}, func(t *jwt.Token) (interface{}, error) {
@@ -23,7 +25,7 @@ func ParseToken(tokenString string) (*AuthClaims, error) {
 	})
 
 	if err != nil || !token.Valid {
-		return nil, errors.New("invalid token")
+		return nil, errors.New("invalid or expired token")
 	}
 
 	claims, ok := token.Claims.(*AuthClaims)
