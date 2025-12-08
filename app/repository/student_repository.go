@@ -9,10 +9,16 @@ type StudentRepository struct {
 	DB *sql.DB
 }
 
+func NewStudentRepository(db *sql.DB) *StudentRepository {
+	return &StudentRepository{DB: db}
+}
+
 func (r *StudentRepository) FindByID(id string) (*model.Student, error) {
+
 	row := r.DB.QueryRow(`
 		SELECT id, user_id, student_id, program_study, academic_year, advisor_id, created_at
-		FROM students WHERE id=$1
+		FROM students 
+		WHERE id=$1
 	`, id)
 
 	var s model.Student
@@ -22,14 +28,32 @@ func (r *StudentRepository) FindByID(id string) (*model.Student, error) {
 	if err != nil {
 		return nil, err
 	}
+	return &s, nil
+}
 
+func (r *StudentRepository) FindByUserID(userID string) (*model.Student, error) {
+
+	row := r.DB.QueryRow(`
+		SELECT id, user_id, student_id, program_study, academic_year, advisor_id, created_at
+		FROM students 
+		WHERE user_id=$1
+	`, userID)
+
+	var s model.Student
+	err := row.Scan(&s.ID, &s.User_id, &s.Student_id,
+		&s.Program_study, &s.Academic_year, &s.Advisor_id, &s.Created_at)
+
+	if err != nil {
+		return nil, err
+	}
 	return &s, nil
 }
 
 func (r *StudentRepository) FindByAdvisor(lecturerID string) ([]model.Student, error) {
+
 	rows, err := r.DB.Query(`
 		SELECT id, user_id, student_id, program_study, academic_year, advisor_id, created_at
-		FROM students
+		FROM students 
 		WHERE advisor_id=$1
 	`, lecturerID)
 
@@ -38,15 +62,15 @@ func (r *StudentRepository) FindByAdvisor(lecturerID string) ([]model.Student, e
 	}
 	defer rows.Close()
 
-	var students []model.Student
+	var list []model.Student
 
 	for rows.Next() {
 		var s model.Student
 		rows.Scan(&s.ID, &s.User_id, &s.Student_id,
 			&s.Program_study, &s.Academic_year, &s.Advisor_id, &s.Created_at)
 
-		students = append(students, s)
+		list = append(list, s)
 	}
 
-	return students, nil
+	return list, nil
 }

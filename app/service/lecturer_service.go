@@ -1,24 +1,83 @@
 package service
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"context"
+	"time"
 
-type LecturerService struct{}
+	"PROJECT_UAS/app/model"
+	"PROJECT_UAS/app/repository"
 
-func NewLecturerService() *LecturerService {
-	return &LecturerService{}
+	"github.com/gofiber/fiber/v2"
+)
+
+type LecturerService struct {
+	StudentRepo     *repository.StudentRepository
+	AchievementRepo *repository.AchievementRepository
 }
 
-// GET /lecturer/achievements
+func NewLecturerService(sRepo *repository.StudentRepository, aRepo *repository.AchievementRepository) *LecturerService {
+	return &LecturerService{
+		StudentRepo:     sRepo,
+		AchievementRepo: aRepo,
+	}
+}
+
+// GET /lecturer/advisees
 func (s *LecturerService) GetStudentAchievements(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "List student achievements (dummy)"})
+
+	lecturerID := c.Locals("userID")
+	if lecturerID == nil {
+		return fiber.NewError(fiber.StatusUnauthorized, "no user")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// load mahasiswa bimbingan
+	students, err := s.StudentRepo.FindByAdvisor(lecturerID.(string))
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	// load prestasi tiap mahasiswa
+	response := make(map[string][]model.Achievement)
+
+	for _, st := range students {
+		achievements, _ := s.AchievementRepo.ListByStudent(ctx, st.Student_id)
+		response[st.Student_id] = achievements
+	}
+
+	return c.JSON(response)
 }
 
 // PUT /lecturer/achievements/:id/verify
 func (s *LecturerService) VerifyAchievement(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Verify achievement (dummy)"})
+
+	id := c.Params("id")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := s.AchievementRepo.UpdateStatusByID(ctx, id, "verified")
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	return c.JSON(fiber.Map{"message": "Achievement verified"})
 }
 
 // PUT /lecturer/achievements/:id/reject
 func (s *LecturerService) RejectAchievement(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "Reject achievement (dummy)"})
+
+	id := c.Params("id")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := s.AchievementRepo.UpdateStatusByID(ctx, id, "rejected")
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	return c.JSON(fiber.Map{"message": "Achievement rejected"})
 }

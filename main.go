@@ -41,7 +41,7 @@ func main() {
 	app := fiber.New()
 
 	// kirim postgres ke route
-	route.RegisterRoutes(app, postgresDB)
+	route.RegisterRoutes(app, postgresDB, mongoDB)
 
 	// ==============================
 	// RUN SERVER
