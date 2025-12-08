@@ -2,8 +2,8 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
-	"time"
 
 	"PROJECT_UAS/app/model"
 	"go.mongodb.org/mongo-driver/bson"
@@ -12,49 +12,40 @@ import (
 )
 
 type AchievementRepository struct {
-	Coll      *mongo.Collection
-	RefColl   *mongo.Collection
+	Coll  *mongo.Collection // MongoDB achievements
+	SqlDB *sql.DB           // PostgreSQL achievement_references
 }
 
-func NewAchievementRepository(db *mongo.Database) *AchievementRepository {
+func NewAchievementRepository(mongo *mongo.Database, sql *sql.DB) *AchievementRepository {
 	return &AchievementRepository{
-		Coll:    db.Collection("achievements"),
-		RefColl: db.Collection("achievement_references"),
+		Coll:  mongo.Collection("achievements"),
+		SqlDB: sql,
 	}
 }
 
 //
-// -----------------------------------------------------------
-// CREATE ACHIEVEMENT
-// -----------------------------------------------------------
+// CREATE ACHIEVEMENT (MongoDB)
+//
 func (r *AchievementRepository) Create(ctx context.Context, a model.Achievement) (string, error) {
-
 	res, err := r.Coll.InsertOne(ctx, a)
 	if err != nil {
 		return "", err
 	}
 
-	oid, ok := res.InsertedID.(primitive.ObjectID)
-	if !ok {
-		return "", errors.New("inserted ID is not ObjectID")
-	}
-
+	oid := res.InsertedID.(primitive.ObjectID)
 	return oid.Hex(), nil
 }
 
 //
-// -----------------------------------------------------------
 // FIND BY ID
-// -----------------------------------------------------------
+//
 func (r *AchievementRepository) FindByID(ctx context.Context, id string) (*model.Achievement, error) {
-
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, err
 	}
 
 	var ach model.Achievement
-
 	err = r.Coll.FindOne(ctx, bson.M{"_id": objID}).Decode(&ach)
 	if err != nil {
 		return nil, err
@@ -64,11 +55,9 @@ func (r *AchievementRepository) FindByID(ctx context.Context, id string) (*model
 }
 
 //
-// -----------------------------------------------------------
-// FIND ACHIEVEMENTS BY STUDENT ID
-// -----------------------------------------------------------
+// FIND BY STUDENT ID
+//
 func (r *AchievementRepository) FindByStudentID(ctx context.Context, studentID string) ([]model.Achievement, error) {
-
 	cur, err := r.Coll.Find(ctx, bson.M{"student_id": studentID})
 	if err != nil {
 		return nil, err
@@ -76,7 +65,6 @@ func (r *AchievementRepository) FindByStudentID(ctx context.Context, studentID s
 	defer cur.Close(ctx)
 
 	var list []model.Achievement
-
 	for cur.Next(ctx) {
 		var a model.Achievement
 		cur.Decode(&a)
@@ -87,11 +75,16 @@ func (r *AchievementRepository) FindByStudentID(ctx context.Context, studentID s
 }
 
 //
-// -----------------------------------------------------------
-// DELETE ACHIEVEMENT BY ID
-// -----------------------------------------------------------
-func (r *AchievementRepository) DeleteByID(ctx context.Context, id string) error {
+// ALIAS FOR LECTURER SERVICE
+//
+func (r *AchievementRepository) ListByStudent(ctx context.Context, studentID string) ([]model.Achievement, error) {
+	return r.FindByStudentID(ctx, studentID)
+}
 
+//
+// DELETE (Mongo)
+//
+func (r *AchievementRepository) DeleteByID(ctx context.Context, id string) error {
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return err
@@ -102,49 +95,37 @@ func (r *AchievementRepository) DeleteByID(ctx context.Context, id string) error
 }
 
 //
-// -----------------------------------------------------------
-// CREATE REFERENCE (SQL replacement, stored in Mongo since your model is Mongo)
-// -----------------------------------------------------------
-func (r *AchievementRepository) CreateReference(ctx context.Context, ref model.Achievement_reference) error {
+// CREATE REFERENCE (PostgreSQL)
+//
+func (r *AchievementRepository) CreateReference(ctx context.Context, studentID string, mongoAchievementID string) error {
+	if r.SqlDB == nil {
+		return errors.New("sql db not configured")
+	}
 
-	_, err := r.RefColl.InsertOne(ctx, ref)
+	query := `
+		INSERT INTO achievement_references
+		(student_id, mongo_achievement_id, status, submitted_at, created_at, updated_at)
+		VALUES ($1, $2, 'submitted', NOW(), NOW(), NOW())
+	`
+
+	_, err := r.SqlDB.ExecContext(ctx, query, studentID, mongoAchievementID)
 	return err
 }
 
-// LIST ACHIEVEMENTS BY STUDENT ID
-func (r *AchievementRepository) ListByStudent(ctx context.Context, studentID string) ([]model.Achievement, error) {
-
-	cur, err := r.Coll.Find(ctx, bson.M{"student_id": studentID})
-	if err != nil {
-		return nil, err
-	}
-	defer cur.Close(ctx)
-
-	var list []model.Achievement
-
-	for cur.Next(ctx) {
-		var a model.Achievement
-		cur.Decode(&a)
-		list = append(list, a)
-	}
-
-	return list, nil
-}
-
-// UPDATE STATUS IN REFERENCE COLLECTION
+//
+// UPDATE STATUS (PostgreSQL)
+//
 func (r *AchievementRepository) UpdateStatusByID(ctx context.Context, achID string, status string) error {
+	if r.SqlDB == nil {
+		return errors.New("sql db not configured")
+	}
 
-	_, err := r.RefColl.UpdateOne(
-		ctx,
-		bson.M{"mongo_achievement_id": achID},
-		bson.M{
-			"$set": bson.M{
-				"status":      status,
-				"updated_at":  time.Now(),
-				"verified_at": time.Now(),
-			},
-		},
-	)
+	query := `
+		UPDATE achievement_references
+		SET status=$1, updated_at=NOW(), verified_at=NOW()
+		WHERE mongo_achievement_id=$2
+	`
 
+	_, err := r.SqlDB.ExecContext(ctx, query, status, achID)
 	return err
 }

@@ -18,7 +18,8 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database) {
 	// -------------------------------------------
 	authRepo := repository.NewAuthRepository(pg)
 	studentRepo := &repository.StudentRepository{DB: pg}
-	achRepo := repository.NewAchievementRepository(mongoDb)
+	achRepo := repository.NewAchievementRepository(mongoDb, pg)
+
 
 	// -------------------------------------------
 	// SERVICES

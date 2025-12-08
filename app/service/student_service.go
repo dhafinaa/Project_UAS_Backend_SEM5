@@ -98,6 +98,7 @@ func (s *StudentService) CreateAchievement(c *fiber.Ctx) error {
 // ----------------------------------------------------------------------
 // SUBMIT ACHIEVEMENT — membuat record reference di SQL
 // ----------------------------------------------------------------------
+// SUBMIT ACHIEVEMENT
 func (s *StudentService) SubmitAchievement(c *fiber.Ctx) error {
 
 	achID := c.Params("id")
@@ -108,26 +109,30 @@ func (s *StudentService) SubmitAchievement(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "student profile not found")
 	}
 
-	ref := model.Achievement_reference{
-		ID:                 primitive.NewObjectID().Hex(),
-		Student_id:         student.ID,
-		Mongo_achievement_id: achID,
-		Status:             "submitted",
-		Submitted_at:       time.Now(),
-		Created_at:         time.Now(),
-		Updated_at:         time.Now(),
+	ctx := c.Context()
+
+	// Verify achievement exists
+	ach, err := s.AchRepo.FindByID(ctx, achID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "achievement not found")
+	}
+	if ach.Student_id != student.ID {
+		return fiber.NewError(fiber.StatusForbidden, "achievement does not belong to student")
 	}
 
-	err = s.AchRepo.CreateReference(c.Context(), ref)
+	// Insert reference into PostgreSQL with status = 'submitted'
+	err = s.AchRepo.CreateReference(ctx, student.ID, achID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed submitting achievement")
 	}
 
 	return c.JSON(fiber.Map{
 		"message": "achievement submitted",
-		"ref_id":  ref.ID,
+		"achievement_id": achID,
+		"status": "submitted",
 	})
 }
+
 
 // ----------------------------------------------------------------------
 // DELETE ACHIEVEMENT

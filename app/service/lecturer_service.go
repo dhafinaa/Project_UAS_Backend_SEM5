@@ -39,12 +39,11 @@ func (s *LecturerService) GetStudentAchievements(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 
-	// load prestasi tiap mahasiswa
 	response := make(map[string][]model.Achievement)
 
 	for _, st := range students {
-		achievements, _ := s.AchievementRepo.ListByStudent(ctx, st.Student_id)
-		response[st.Student_id] = achievements
+		achievements, _ := s.AchievementRepo.ListByStudent(ctx, st.ID)
+		response[st.ID] = achievements
 	}
 
 	return c.JSON(response)
@@ -54,7 +53,6 @@ func (s *LecturerService) GetStudentAchievements(c *fiber.Ctx) error {
 func (s *LecturerService) VerifyAchievement(c *fiber.Ctx) error {
 
 	id := c.Params("id")
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -70,7 +68,6 @@ func (s *LecturerService) VerifyAchievement(c *fiber.Ctx) error {
 func (s *LecturerService) RejectAchievement(c *fiber.Ctx) error {
 
 	id := c.Params("id")
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
