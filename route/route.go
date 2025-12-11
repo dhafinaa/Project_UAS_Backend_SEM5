@@ -24,8 +24,8 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database) {
 	// -------------------------------------------
 	// SERVICES
 	// -------------------------------------------
-	authService := service.NewAuthService(authRepo)
-	studentService := service.NewStudentService(achRepo, studentRepo)
+	authService := service.NewAuthService(authRepo)         
+	achievementService := service.NewAchievementService(achRepo, studentRepo) 
 	lecturerService := service.NewLecturerService(studentRepo, achRepo)
 
 	// -------------------------------------------
@@ -46,13 +46,13 @@ student := app.Group("/student",
 )
 
 // ---- ACHIEVEMENTS ----
-student.Get("/achievements", middleware.PermissionRequired("achievement.read"), studentService.GetAchievements)
-student.Get("/achievements/:id", middleware.PermissionRequired("achievement.read"), studentService.GetAchievementDetail)
-student.Post("/achievements", middleware.PermissionRequired("achievement.create"), studentService.CreateAchievement)
-student.Put("/achievements/:id", middleware.PermissionRequired("achievement.update"), studentService.UpdateAchievement)
-student.Delete("/achievements/:id", middleware.PermissionRequired("achievement.delete"),studentService.DeleteAchievement)
-student.Post("/achievements/:id/submit", middleware.PermissionRequired("achievement.submit"), studentService.SubmitAchievement)
-student.Post("/achievements/:id/attachments", middleware.PermissionRequired("achievement.attachment.upload"), studentService.UploadAttachment)
+student.Get("/achievements", middleware.PermissionRequired("achievement.read"), achievementService.GetAchievements)
+student.Get("/achievements/:id", middleware.PermissionRequired("achievement.read"), achievementService.GetAchievementDetail)
+student.Post("/achievements", middleware.PermissionRequired("achievement.create"), achievementService.CreateAchievement)
+student.Put("/achievements/:id", middleware.PermissionRequired("achievement.update"), achievementService.UpdateAchievement)
+student.Delete("/achievements/:id", middleware.PermissionRequired("achievement.delete"),achievementService.DeleteAchievement)
+student.Post("/achievements/:id/submit", middleware.PermissionRequired("achievement.submit"), achievementService.SubmitAchievement)
+student.Post("/achievements/:id/attachments", middleware.PermissionRequired("achievement.attachment.upload"), achievementService.UploadAttachment)
 
 
 	// -------------------------------------------
