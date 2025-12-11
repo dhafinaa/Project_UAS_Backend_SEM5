@@ -12,7 +12,7 @@ type AchievementReferenceRepository struct {
 func (r *AchievementReferenceRepository) Create(ref model.Achievement_reference) error {
 	_, err := r.DB.Exec(`
 		INSERT INTO achievement_references 
-		(id, student_id, mongo_achievement_id, status, created_at, updated_at)
+		(id, students_id, mongo_achievement_id, status, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, NOW(), NOW())
 	`,
 		ref.ID, ref.Student_id, ref.Mongo_achievement_id, ref.Status)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"PROJECT_UAS/app/model"
 	"go.mongodb.org/mongo-driver/bson"
@@ -98,19 +99,29 @@ func (r *AchievementRepository) DeleteByID(ctx context.Context, id string) error
 // CREATE REFERENCE (PostgreSQL)
 //
 func (r *AchievementRepository) CreateReference(ctx context.Context, studentID string, mongoAchievementID string) error {
-	if r.SqlDB == nil {
-		return errors.New("sql db not configured")
-	}
+    if r.SqlDB == nil {
+        return errors.New("sql db not configured")
+    }
 
-	query := `
-		INSERT INTO achievement_references
-		(student_id, mongo_achievement_id, status, submitted_at, created_at, updated_at)
-		VALUES ($1, $2, 'submitted', NOW(), NOW(), NOW())
-	`
+    query := `
+        INSERT INTO achievement_references
+        (students_id, mongo_achievement_id, status, submitted_at, created_at, updated_at)
+        VALUES ($1, $2, 'draft', NOW(), NOW(), NOW())
+    `
 
-	_, err := r.SqlDB.ExecContext(ctx, query, studentID, mongoAchievementID)
-	return err
+    // DEBUG
+    fmt.Println("DEBUG INSERT studentID =", studentID)
+    fmt.Println("DEBUG INSERT mongoID =", mongoAchievementID)
+
+    _, err := r.SqlDB.ExecContext(ctx, query, studentID, mongoAchievementID)
+    
+    if err != nil {
+        fmt.Println("SQL ERROR:", err)  // <---- INI YANG PALING PENTING
+    }
+
+    return err
 }
+
 
 //
 // UPDATE STATUS (PostgreSQL)

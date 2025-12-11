@@ -50,11 +50,13 @@ func (s *StudentService) CreateAchievement(c *fiber.Ctx) error {
 
 	userID := c.Locals("userID").(string)
 
+	// Ambil student profile berdasarkan user_id
 	student, err := s.StudentRepo.FindByUserID(userID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "student profile not found")
 	}
 
+	// Request body
 	var req struct {
 		Achievement_type string                 `json:"achievement_type"`
 		Title            string                 `json:"title"`
@@ -65,13 +67,15 @@ func (s *StudentService) CreateAchievement(c *fiber.Ctx) error {
 	}
 
 	if err := c.BodyParser(&req); err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "invalid input")
+		return fiber.NewError(fiber.StatusBadRequest, "invalid input format")
 	}
 
-	newID := primitive.NewObjectID().Hex()
+	// ID MongoDB manual (Hex string)
+	mongoID := primitive.NewObjectID().Hex()
 
+	// Siapkan data prestasi untuk MongoDB
 	achievement := model.Achievement{
-		ID:               newID,
+		ID:               mongoID,
 		Student_id:       student.ID,
 		Achievement_type: req.Achievement_type,
 		Title:            req.Title,
@@ -84,16 +88,33 @@ func (s *StudentService) CreateAchievement(c *fiber.Ctx) error {
 		Updated_at:       time.Now(),
 	}
 
+	// ------------------------------
+	// 1) INSERT ke MongoDB
+	// ------------------------------
 	_, err = s.AchRepo.Create(c.Context(), achievement)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "failed to save achievement")
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to save achievement to MongoDB")
 	}
 
+	// ------------------------------
+	// 2) INSERT reference ke PostgreSQL
+	// Status awal = "draft"
+	// submitted_at = NULL
+	// ------------------------------
+	err = s.AchRepo.CreateReference(c.Context(), student.ID, mongoID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed to save reference to PostgreSQL")
+	}
+
+	// Response SRS FR-003
 	return c.JSON(fiber.Map{
-		"message":       "achievement created",
-		"achievement_id": newID,
+		"message":           "achievement created",
+		"achievement_id":    mongoID,
+		"reference_status":  "draft",
 	})
 }
+
+
 
 // ----------------------------------------------------------------------
 // SUBMIT ACHIEVEMENT — membuat record reference di SQL
