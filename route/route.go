@@ -40,15 +40,20 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database) {
 	// -------------------------------------------
 	// STUDENT ROUTES
 	// -------------------------------------------
-	student := app.Group("/student",
-		middleware.AuthRequired(authRepo),
-		middleware.RoleRequired("Mahasiswa"),
-	)
+student := app.Group("/student",
+	middleware.AuthRequired(authRepo),
+	middleware.RoleRequired("Mahasiswa"),
+)
 
-	student.Get("/achievements", middleware.PermissionRequired("achievement.read"), studentService.GetAchievements)
-	student.Post("/achievements", middleware.PermissionRequired("achievement.create"), studentService.CreateAchievement)
-	student.Put("/achievements/:id/submit", middleware.PermissionRequired("achievement.submit"), studentService.SubmitAchievement)
-	student.Delete("/achievements/:id", middleware.PermissionRequired("achievement.delete"), studentService.DeleteAchievement)
+// ---- ACHIEVEMENTS ----
+student.Get("/achievements", middleware.PermissionRequired("achievement.read"), studentService.GetAchievements)
+student.Get("/achievements/:id", middleware.PermissionRequired("achievement.read"), studentService.GetAchievementDetail)
+student.Post("/achievements", middleware.PermissionRequired("achievement.create"), studentService.CreateAchievement)
+student.Put("/achievements/:id", middleware.PermissionRequired("achievement.update"), studentService.UpdateAchievement)
+student.Delete("/achievements/:id", middleware.PermissionRequired("achievement.delete"),studentService.DeleteAchievement)
+student.Post("/achievements/:id/submit", middleware.PermissionRequired("achievement.submit"), studentService.SubmitAchievement)
+student.Post("/achievements/:id/attachments", middleware.PermissionRequired("achievement.attachment.upload"), studentService.UploadAttachment)
+
 
 	// -------------------------------------------
 	// LECTURER ROUTES
@@ -64,19 +69,5 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database) {
 
 
 
-	// ADMIN
-	// admin := app.Group("/admin",
-	// 	middleware.AuthRequired(authRepo),
-	// 	middleware.RoleRequired("Admin"),
-	// )
-	// admin.Post("/users", middleware.PermissionRequired("user.manage"), adminService.CreateUser)
-	// admin.Put("/users/:id", middleware.PermissionRequired("user.manage"), adminService.UpdateUser)
-	// admin.Delete("/users/:id", middleware.PermissionRequired("user.manage"), adminService.DeleteUser)
-	// admin.Put("/users/:id/role", middleware.PermissionRequired("user.manage"), adminService.AssignRole)
 
-	// admin.Put("/students/:id/profile", middleware.PermissionRequired("user.manage"), adminService.SetStudentProfile)
-	// admin.Put("/lecturers/:id/profile", middleware.PermissionRequired("user.manage"), adminService.SetLecturerProfile)
-	// admin.Put("/students/:id/advisor", middleware.PermissionRequired("student.assign.advisor"), adminService.SetAdvisor)
-
-	// admin.Get("/reports/achievements", middleware.PermissionRequired("reports.read"), adminService.GenerateAchievementReport)
 }

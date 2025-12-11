@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"PROJECT_UAS/app/model"
 	"go.mongodb.org/mongo-driver/bson"
@@ -139,4 +140,42 @@ func (r *AchievementRepository) UpdateStatusByID(ctx context.Context, achID stri
 
 	_, err := r.SqlDB.ExecContext(ctx, query, status, achID)
 	return err
+}
+
+
+// -----------------------------------------------------------
+// UPDATE ACHIEVEMENT (MongoDB)
+// -----------------------------------------------------------
+func (r *AchievementRepository) UpdateAchievement(ctx context.Context, id string, update bson.M) error {
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.Coll.UpdateOne(
+		ctx,
+		bson.M{"_id": objID},
+		bson.M{"$set": update},
+	)
+	return err
+}
+
+// -----------------------------------------------------------
+// ADD ATTACHMENT
+// -----------------------------------------------------------
+func (r *AchievementRepository) AddAttachment(ctx context.Context, id string, attachment model.Attachment) error {
+    objID, err := primitive.ObjectIDFromHex(id)
+    if err != nil {
+        return err
+    }
+
+    _, err = r.Coll.UpdateOne(
+        ctx,
+        bson.M{"_id": objID},
+        bson.M{
+            "$push": bson.M{"attachments": attachment},
+            "$set":  bson.M{"updated_at": time.Now()},
+        },
+    )
+    return err
 }

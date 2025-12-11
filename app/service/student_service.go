@@ -2,9 +2,11 @@ package service
 
 import (
 	"time"
+	
 
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/bson" 
 
 	"PROJECT_UAS/app/model"
 	"PROJECT_UAS/app/repository"
@@ -170,5 +172,124 @@ func (s *StudentService) DeleteAchievement(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"message": "achievement deleted",
 		"id":      achID,
+	})
+}
+
+
+func (s *StudentService) GetAchievementDetail(c *fiber.Ctx) error {
+	achID := c.Params("id")
+	userID := c.Locals("userID").(string)
+
+	student, err := s.StudentRepo.FindByUserID(userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "student not found")
+	}
+
+	ach, err := s.AchRepo.FindByID(c.Context(), achID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "achievement not found")
+	}
+
+	if ach.Student_id != student.ID {
+		return fiber.NewError(fiber.StatusForbidden, "not your achievement")
+	}
+
+	return c.JSON(ach)
+}
+
+
+func (s *StudentService) UpdateAchievement(c *fiber.Ctx) error {
+	achID := c.Params("id")
+	userID := c.Locals("userID").(string)
+
+	student, err := s.StudentRepo.FindByUserID(userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "student not found")
+	}
+
+	// pastikan prestasi milik mahasiswa
+	ach, err := s.AchRepo.FindByID(c.Context(), achID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "achievement not found")
+	}
+	if ach.Student_id != student.ID {
+		return fiber.NewError(fiber.StatusForbidden, "not your achievement")
+	}
+
+	var req struct {
+		Title            string                 `json:"title"`
+		Description      string                 `json:"description"`
+		Details          map[string]interface{} `json:"details"`
+		Tags             []string               `json:"tags"`
+		Points           int                    `json:"points"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid input")
+	}
+
+	update := bson.M{
+		"title":       req.Title,
+		"description": req.Description,
+		"details":     req.Details,
+		"tags":        req.Tags,
+		"points":      req.Points,
+		"updated_at":  time.Now(),
+	}
+
+	err = s.AchRepo.UpdateAchievement(c.Context(), achID, update)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed updating achievement")
+	}
+
+	return c.JSON(fiber.Map{"message": "achievement updated"})
+}
+
+
+func (s *StudentService) UploadAttachment(c *fiber.Ctx) error {
+	achID := c.Params("id")
+	userID := c.Locals("userID").(string)
+
+	student, err := s.StudentRepo.FindByUserID(userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "student not found")
+	}
+
+	ach, err := s.AchRepo.FindByID(c.Context(), achID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "achievement not found")
+	}
+	if ach.Student_id != student.ID {
+		return fiber.NewError(fiber.StatusForbidden, "not your achievement")
+	}
+
+	// Ambil file
+	file, err := c.FormFile("file")
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "file is required")
+	}
+
+	// Simpan ke folder lokal (atau S3 nanti)
+	savePath := "./uploads/" + file.Filename
+	err = c.SaveFile(file, savePath)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed saving file")
+	}
+
+	attachment := model.Attachment{
+		File_name:  file.Filename,
+		File_url:   "/uploads/" + file.Filename,
+		File_type:  file.Header.Get("Content-Type"),
+		Uploaded_at: time.Now(),
+	}
+
+	err = s.AchRepo.AddAttachment(c.Context(), achID, attachment)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "failed adding attachment")
+	}
+
+	return c.JSON(fiber.Map{
+		"message":  "attachment uploaded",
+		"filename": file.Filename,
 	})
 }
