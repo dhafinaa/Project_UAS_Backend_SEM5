@@ -41,20 +41,34 @@ func (r *AchievementRepository) Create(ctx context.Context, a model.Achievement)
 //
 // FIND BY ID
 //
-func (r *AchievementRepository) FindByID(ctx context.Context, id string) (*model.Achievement, error) {
+func (r *AchievementRepository) FindByID(
+	ctx context.Context,
+	id string,
+) (*model.Achievement, error) {
+
+	// 1. Validasi ObjectID
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("invalid achievement id")
 	}
 
+	// 2. Cari berdasarkan _id Mongo
 	var ach model.Achievement
-	err = r.Coll.FindOne(ctx, bson.M{"_id": objID}).Decode(&ach)
+	err = r.Coll.FindOne(ctx, bson.M{
+		"_id": objID,
+	}).Decode(&ach)
+
+	// 3. Tangani kalau data tidak ada
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("achievement not found")
+		}
 		return nil, err
 	}
 
 	return &ach, nil
 }
+
 
 //
 // FIND BY STUDENT ID
@@ -179,3 +193,32 @@ func (r *AchievementRepository) AddAttachment(ctx context.Context, id string, at
     )
     return err
 }
+
+
+func (r *AchievementRepository) SubmitAchievement(
+	ctx context.Context,
+	mongoAchievementID string,
+) error {
+
+	query := `
+		UPDATE achievement_references
+		SET status = 'submitted',
+		    submitted_at = NOW(),
+		    updated_at = NOW()
+		WHERE mongo_achievement_id = $1
+		  AND status = 'draft'
+	`
+
+	res, err := r.SqlDB.ExecContext(ctx, query, mongoAchievementID)
+	if err != nil {
+		return err
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return errors.New("achievement reference not found or already submitted")
+	}
+
+	return nil
+}
+

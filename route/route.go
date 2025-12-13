@@ -50,8 +50,8 @@ student.Get("/achievements", middleware.PermissionRequired("achievement.read"), 
 student.Get("/achievements/:id", middleware.PermissionRequired("achievement.read"), achievementService.GetAchievementDetail)
 student.Post("/achievements", middleware.PermissionRequired("achievement.create"), achievementService.CreateAchievement)
 student.Put("/achievements/:id", middleware.PermissionRequired("achievement.update"), achievementService.UpdateAchievement)
-student.Delete("/achievements/:id", middleware.PermissionRequired("achievement.delete"),achievementService.DeleteAchievement)
 student.Post("/achievements/:id/submit", middleware.PermissionRequired("achievement.submit"), achievementService.SubmitAchievement)
+student.Delete("/achievements/:id", middleware.PermissionRequired("achievement.delete"),achievementService.DeleteAchievement)
 student.Post("/achievements/:id/attachments", middleware.PermissionRequired("achievement.attachment.upload"), achievementService.UploadAttachment)
 
 

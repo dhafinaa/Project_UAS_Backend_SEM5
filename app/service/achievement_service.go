@@ -4,7 +4,6 @@ import (
 	"time"
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"PROJECT_UAS/app/model"
 	"PROJECT_UAS/app/repository"
@@ -48,19 +47,23 @@ func (s *AchievementService) GetAchievementDetail(c *fiber.Ctx) error {
 	achID := c.Params("id")
 	userID := c.Locals("userID").(string)
 
-	student, _ := s.StudentRepo.FindByUserID(userID)
+	student, err := s.StudentRepo.FindByUserID(userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "student not found")
+	}
 
 	ach, err := s.AchRepo.FindByID(c.Context(), achID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "achievement not found")
 	}
 
-	if ach.Student_id != student.ID {
+	if ach.StudentID != student.ID {
 		return fiber.NewError(fiber.StatusForbidden, "not your achievement")
 	}
 
 	return c.JSON(ach)
 }
+
 
 //
 // CREATE
@@ -86,27 +89,26 @@ func (s *AchievementService) CreateAchievement(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid input")
 	}
 
-	mongoID := primitive.NewObjectID().Hex()
-
 	achievement := model.Achievement{
-		ID:               mongoID,
-		Student_id:       student.ID,
-		Achievement_type: req.Achievement_type,
-		Title:            req.Title,
-		Description:      req.Description,
-		Details:          req.Details,
-		Tags:             req.Tags,
-		Points:           req.Points,
-		Attachments:      []model.Attachment{},
-		Created_at:       time.Now(),
-		Updated_at:       time.Now(),
+		StudentID:       student.ID,
+		AchievementType: req.Achievement_type,
+		Title:           req.Title,
+		Description:     req.Description,
+		Details:         req.Details,
+		Tags:            req.Tags,
+		Points:          req.Points,
+		Attachments:     []model.Attachment{},
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
 
-	_, err = s.AchRepo.Create(c.Context(), achievement)
+	// 1️⃣ INSERT ke Mongo
+	mongoID, err := s.AchRepo.Create(c.Context(), achievement)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed saving to MongoDB")
 	}
 
+	// 2️⃣ INSERT reference ke PostgreSQL
 	err = s.AchRepo.CreateReference(c.Context(), student.ID, mongoID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed saving reference")
@@ -118,6 +120,7 @@ func (s *AchievementService) CreateAchievement(c *fiber.Ctx) error {
 		"reference_status": "draft",
 	})
 }
+
 
 //
 // UPDATE
@@ -132,7 +135,7 @@ func (s *AchievementService) UpdateAchievement(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "achievement not found")
 	}
-	if ach.Student_id != student.ID {
+	if ach.StudentID != student.ID {
 		return fiber.NewError(fiber.StatusForbidden, "not your achievement")
 	}
 
@@ -185,26 +188,37 @@ func (s *AchievementService) SubmitAchievement(c *fiber.Ctx) error {
 	achID := c.Params("id")
 	userID := c.Locals("userID").(string)
 
-	student, _ := s.StudentRepo.FindByUserID(userID)
+	// 1. Ambil student
+	student, err := s.StudentRepo.FindByUserID(userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "student not found")
+	}
 
+	// 2. Pastikan achievement ada di Mongo
 	ach, err := s.AchRepo.FindByID(c.Context(), achID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "achievement not found")
 	}
-	if ach.Student_id != student.ID {
+
+	// 3. Pastikan milik mahasiswa
+	if ach.StudentID != student.ID {
 		return fiber.NewError(fiber.StatusForbidden, "not your achievement")
 	}
 
-	err = s.AchRepo.CreateReference(c.Context(), student.ID, achID)
+	// 4. Update status di PostgreSQL
+	err = s.AchRepo.SubmitAchievement(c.Context(), achID)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "submit failed")
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
 	return c.JSON(fiber.Map{
-		"message": "achievement submitted",
-		"id":      achID,
+		"message":        "achievement submitted",
+		"achievement_id": achID,
+		"status":         "submitted",
 	})
 }
+
+
 
 //
 // UPLOAD ATTACHMENT
@@ -213,13 +227,17 @@ func (s *AchievementService) UploadAttachment(c *fiber.Ctx) error {
 	achID := c.Params("id")
 	userID := c.Locals("userID").(string)
 
-	student, _ := s.StudentRepo.FindByUserID(userID)
+	student, err := s.StudentRepo.FindByUserID(userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "student not found")
+	}
 
 	ach, err := s.AchRepo.FindByID(c.Context(), achID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "achievement not found")
 	}
-	if ach.Student_id != student.ID {
+
+	if ach.StudentID != student.ID {
 		return fiber.NewError(fiber.StatusForbidden, "not your achievement")
 	}
 
@@ -229,20 +247,18 @@ func (s *AchievementService) UploadAttachment(c *fiber.Ctx) error {
 	}
 
 	savePath := "./uploads/" + file.Filename
-	err = c.SaveFile(file, savePath)
-	if err != nil {
+	if err := c.SaveFile(file, savePath); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed saving file")
 	}
 
 	attachment := model.Attachment{
-		File_name:  file.Filename,
-		File_url:   "/uploads/" + file.Filename,
-		File_type:  file.Header.Get("Content-Type"),
-		Uploaded_at: time.Now(),
+		FileName:   file.Filename,
+		FileURL:    "/uploads/" + file.Filename,
+		FileType:   file.Header.Get("Content-Type"),
+		UploadedAt: time.Now(),
 	}
 
-	err = s.AchRepo.AddAttachment(c.Context(), achID, attachment)
-	if err != nil {
+	if err := s.AchRepo.AddAttachment(c.Context(), achID, attachment); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed adding attachment")
 	}
 

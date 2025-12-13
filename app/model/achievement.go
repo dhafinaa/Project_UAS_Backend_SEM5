@@ -1,28 +1,32 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 type Achievement struct {
-	ID                string                 `json:"_id"`
-	Student_id        string                 `json:"student_id"`
-	Achievement_type  string                 `json:"achievement_type"`
-	Title             string                 `json:"title"`
-	Description       string                 `json:"description"`
+	ID primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 
-	Details           map[string]interface{} `json:"details"`	
+	StudentID       string                 `bson:"student_id" json:"student_id"`
+	AchievementType string                 `bson:"achievement_type" json:"achievement_type"`
+	Title           string                 `bson:"title" json:"title"`
+	Description     string                 `bson:"description" json:"description"`
 
-	Attachments       []Attachment           `json:"attachments"`
+	Details     map[string]interface{} `bson:"details" json:"details"`
+	Attachments []Attachment           `bson:"attachments" json:"attachments"`
 
-	Tags              []string               `json:"tags"`
-	Points            int                    `json:"points"`
+	Tags   []string `bson:"tags" json:"tags"`
+	Points int      `bson:"points" json:"points"`
 
-	Created_at        time.Time              `json:"created_at"`
-	Updated_at        time.Time              `json:"updated_at"`
+	CreatedAt time.Time `bson:"created_at" json:"created_at"`
+	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
 }
 
 type Attachment struct {
-	File_name  string    `json:"file_name"`
-	File_url   string    `json:"file_url"`
-	File_type  string    `json:"file_type"`
-	Uploaded_at time.Time `json:"uploaded_at"`
+	FileName   string    `bson:"file_name" json:"file_name"`
+	FileURL    string    `bson:"file_url" json:"file_url"`
+	FileType   string    `bson:"file_type" json:"file_type"`
+	UploadedAt time.Time `bson:"uploaded_at" json:"uploaded_at"`
 }
