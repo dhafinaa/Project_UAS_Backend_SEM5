@@ -107,7 +107,7 @@ func (r *AchievementRepository) DeleteByID(ctx context.Context, id string) error
 	}
 
 	_, err = r.Coll.DeleteOne(ctx, bson.M{"_id": objID})
-	return err
+	return err	
 }
 
 //
@@ -222,3 +222,29 @@ func (r *AchievementRepository) SubmitAchievement(
 	return nil
 }
 
+//soft delete
+func (r *AchievementRepository) DeleteDraftAchievement(
+	ctx context.Context,
+	mongoAchievementID string,
+) error {
+
+	query := `
+		UPDATE achievement_references
+		SET status = 'deleted',
+		    updated_at = NOW()
+		WHERE mongo_achievement_id = $1
+		  AND status = 'draft'
+	`
+
+	res, err := r.SqlDB.ExecContext(ctx, query, mongoAchievementID)
+	if err != nil {
+		return err
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return errors.New("achievement not in draft status or not found")
+	}
+
+	return nil
+}

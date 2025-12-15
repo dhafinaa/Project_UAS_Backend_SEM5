@@ -171,15 +171,15 @@ func (s *AchievementService) UpdateAchievement(c *fiber.Ctx) error {
 //
 // DELETE
 //
-func (s *AchievementService) DeleteAchievement(c *fiber.Ctx) error {
-	achID := c.Params("id")
-	err := s.AchRepo.DeleteByID(c.Context(), achID)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "failed deleting")
-	}
+// func (s *AchievementService) DeleteAchievement(c *fiber.Ctx) error {
+// 	achID := c.Params("id")
+// 	err := s.AchRepo.DeleteByID(c.Context(), achID)
+// 	if err != nil {
+// 		return fiber.NewError(fiber.StatusInternalServerError, "failed deleting")
+// 	}
 
-	return c.JSON(fiber.Map{"message": "achievement deleted"})
-}
+// 	return c.JSON(fiber.Map{"message": "achievement deleted"})
+// }
 
 //
 // SUBMIT
@@ -217,7 +217,6 @@ func (s *AchievementService) SubmitAchievement(c *fiber.Ctx) error {
 		"status":         "submitted",
 	})
 }
-
 
 
 //
@@ -265,5 +264,40 @@ func (s *AchievementService) UploadAttachment(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"message":  "attachment uploaded",
 		"filename": file.Filename,
+	})
+}
+
+//soft delete
+func (s *AchievementService) DeleteAchievement(c *fiber.Ctx) error {
+	achID := c.Params("id") // mongo_achievement_id
+	userID := c.Locals("userID").(string)
+
+	// 1. Ambil student dari token
+	student, err := s.StudentRepo.FindByUserID(userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "student not found")
+	}
+
+	// 2. Validasi achievement ada di Mongo
+	ach, err := s.AchRepo.FindByID(c.Context(), achID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "achievement not found")
+	}
+
+	// 3. Validasi kepemilikan
+	if ach.StudentID != student.ID {
+		return fiber.NewError(fiber.StatusForbidden, "not your achievement")
+	}
+
+	// 4. Update PostgreSQL → hanya draft boleh delete
+	err = s.AchRepo.DeleteDraftAchievement(c.Context(), achID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+
+	return c.JSON(fiber.Map{
+		"message":        "achievement deleted",
+		"achievement_id": achID,
+		"status":         "deleted",
 	})
 }

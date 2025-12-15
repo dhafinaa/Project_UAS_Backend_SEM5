@@ -20,6 +20,9 @@ type Achievement struct {
 	Tags   []string `bson:"tags" json:"tags"`
 	Points int      `bson:"points" json:"points"`
 
+	IsDeleted        bool      `bson:"is_deleted" json:"is_deleted"`
+	DeletedAt        *time.Time `bson:"deleted_at,omitempty" json:"deleted_at,omitempty"`
+
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
 }
