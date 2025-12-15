@@ -1,8 +1,6 @@
 package service
 
 import (
-	"context"
-	"time"
 
 	"PROJECT_UAS/app/model"
 	"PROJECT_UAS/app/repository"
@@ -93,16 +91,43 @@ func (s *LecturerService) VerifyAchievement(c *fiber.Ctx) error {
 
 // PUT /lecturer/achievements/:id/reject
 func (s *LecturerService) RejectAchievement(c *fiber.Ctx) error {
+    achID := c.Params("id")
+    userID := c.Locals("userID").(string)
 
-	id := c.Params("id")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+    // 1. Ambil lecturer_id dari user_id
+    lecturerID, err := s.LecturerRepo.FindByUserID(userID)
+    if err != nil {
+        return fiber.NewError(403, "lecturer not found")
+    }
 
-	err := s.AchievementRepo.UpdateStatusByID(ctx, id, "rejected")
-	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, err.Error())
-	}
+    // 2. Parse request body (rejection note)
+    var req struct {
+        Note string `json:"rejection_note"`
+    }
 
-	return c.JSON(fiber.Map{"message": "Achievement rejected"})
+    if err := c.BodyParser(&req); err != nil || req.Note == "" {
+        return fiber.NewError(400, "rejection_note is required")
+    }
+
+    // 3. Update status → rejected
+    err = s.AchievementRepo.RejectAchievement(
+        c.Context(),
+        achID,
+        lecturerID,
+        req.Note,
+    )
+    if err != nil {
+        return fiber.NewError(400, err.Error())
+    }
+
+    // 4. (Optional) Notification hook
+    // notificationService.NotifyStudentReject(...)
+
+    return c.JSON(fiber.Map{
+        "message":        "achievement rejected",
+        "achievement_id": achID,
+        "status":         "rejected",
+    })
 }
+
 

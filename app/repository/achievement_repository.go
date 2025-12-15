@@ -399,3 +399,37 @@ func (r *AchievementRepository) VerifyAchievement(
 
 	return nil
 }
+
+
+//reject//
+func (r *AchievementRepository) RejectAchievement(ctx context.Context,mongoAchievementID string,lecturerID string,note string,) error {
+
+    query := `
+        UPDATE achievement_references
+        SET status = 'rejected',
+            rejection_note = $1,
+            verified_by = $2,
+            verified_at = NOW(),
+            updated_at = NOW()
+        WHERE mongo_achievement_id = $3
+          AND status = 'submitted'
+    `
+
+    res, err := r.SqlDB.ExecContext(
+        ctx,
+        query,
+        note,
+        lecturerID,
+        mongoAchievementID,
+    )
+    if err != nil {
+        return err
+    }
+
+    rows, _ := res.RowsAffected()
+    if rows == 0 {
+        return errors.New("achievement not in submitted status or not found")
+    }
+
+    return nil
+}
