@@ -28,6 +28,8 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database) {
 	authService := service.NewAuthService(authRepo)         
 	achievementService := service.NewAchievementService(achRepo, studentRepo) 
 	lecturerService := service.NewLecturerService(studentRepo, achRepo, lecturerRepo)
+	reportService := service.NewReportService(achRepo)
+
 
 	// -------------------------------------------
 	// AUTH ROUTES
@@ -66,6 +68,15 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database) {
 	lecturer.Post("/achievements/:id/reject", middleware.PermissionRequired("achievement.reject"), lecturerService.RejectAchievement)
 
 
+// REPORT ROUTES
+// -------------------------------------------
+reports := app.Group("/reports",
+    middleware.AuthRequired(authRepo),
+)
+
+// Statistik umum (Admin / Dosen Wali)
+reports.Get("/statistics",middleware.PermissionRequired("report.read"),reportService.GetStatistics,)
+reports.Get( "/student/:id", middleware.PermissionRequired("report.read"), reportService.GetStudentReport,)
 
 
 }

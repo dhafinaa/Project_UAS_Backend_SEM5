@@ -433,3 +433,78 @@ func (r *AchievementRepository) RejectAchievement(ctx context.Context,mongoAchie
 
     return nil
 }
+
+
+//get statistik//
+func (r *AchievementRepository) GetStatistics(ctx context.Context) (map[string]int, error) {
+
+    query := `
+        SELECT status, COUNT(*)
+        FROM achievement_references
+        GROUP BY status
+    `
+
+    rows, err := r.SqlDB.QueryContext(ctx, query)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    stats := make(map[string]int)
+
+    for rows.Next() {
+        var status string
+        var count int
+        rows.Scan(&status, &count)
+        stats[status] = count
+    }
+
+    return stats, nil
+}
+
+
+//report per student//
+func (r *AchievementRepository) GetStudentAchievementsReport(
+    ctx context.Context,
+    studentID string,
+) ([]model.Achievement, error) {
+
+    query := `
+        SELECT mongo_achievement_id
+        FROM achievement_references
+        WHERE students_id = $1
+    `
+
+    rows, err := r.SqlDB.QueryContext(ctx, query, studentID)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var objIDs []primitive.ObjectID
+
+    for rows.Next() {
+        var id string
+        rows.Scan(&id)
+        oid, err := primitive.ObjectIDFromHex(id)
+        if err == nil {
+            objIDs = append(objIDs, oid)
+        }
+    }
+
+    if len(objIDs) == 0 {
+        return []model.Achievement{}, nil
+    }
+
+    cursor, err := r.Coll.Find(ctx, bson.M{
+        "_id": bson.M{"$in": objIDs},
+    })
+    if err != nil {
+        return nil, err
+    }
+
+    var achievements []model.Achievement
+    err = cursor.All(ctx, &achievements)
+
+    return achievements, err
+}
