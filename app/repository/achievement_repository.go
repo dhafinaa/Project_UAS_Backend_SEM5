@@ -11,6 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"github.com/lib/pq" 
 )
 
 type AchievementRepository struct {
@@ -247,4 +248,124 @@ func (r *AchievementRepository) DeleteDraftAchievement(
 	}
 
 	return nil
+}
+
+func (r *AchievementRepository) GetReferencesByStudentIDs(
+	ctx context.Context,
+	studentIDs []string,
+	limit, offset int,
+) ([]string, error) {
+
+	query := `
+		SELECT mongo_achievement_id
+		FROM achievement_references
+		WHERE students_id = ANY($1)
+		  AND status != 'deleted'
+		ORDER BY updated_at DESC
+		LIMIT $2 OFFSET $3
+	`
+
+	rows, err := r.SqlDB.QueryContext(
+		ctx,
+		query,
+		pq.Array(studentIDs),
+		limit,
+		offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		rows.Scan(&id)
+		ids = append(ids, id)
+	}
+
+	return ids, nil
+}
+
+
+func (r *AchievementRepository) FindByIDs(
+	ctx context.Context,
+	ids []string,
+) ([]model.Achievement, error) {
+
+	var objIDs []primitive.ObjectID
+	for _, id := range ids {
+		oid, err := primitive.ObjectIDFromHex(id)
+		if err == nil {
+			objIDs = append(objIDs, oid)
+		}
+	}
+
+	filter := bson.M{
+		"_id": bson.M{"$in": objIDs},
+	}
+
+	cur, err := r.Coll.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+
+	var achievements []model.Achievement
+	for cur.Next(ctx) {
+		var ach model.Achievement
+		cur.Decode(&ach)
+		achievements = append(achievements, ach)
+	}
+
+	return achievements, nil
+}
+
+
+
+func (r *AchievementRepository) ListSubmittedByStudents(
+	ctx context.Context,
+	studentIDs []string,
+) ([]model.Achievement, error) {
+
+	query := `
+		SELECT mongo_achievement_id
+		FROM achievement_references
+		WHERE students_id = ANY($1::uuid[])
+		  AND status = 'submitted'
+	`
+
+	rows, err := r.SqlDB.QueryContext(ctx, query, pq.Array(studentIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var objIDs []primitive.ObjectID
+
+	for rows.Next() {
+		var id string
+		rows.Scan(&id)
+
+		oid, err := primitive.ObjectIDFromHex(id)
+		if err == nil {
+			objIDs = append(objIDs, oid)
+		}
+	}
+
+	if len(objIDs) == 0 {
+		return []model.Achievement{}, nil
+	}
+
+	cursor, err := r.Coll.Find(ctx, bson.M{
+		"_id": bson.M{"$in": objIDs},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var achievements []model.Achievement
+	err = cursor.All(ctx, &achievements)
+
+	return achievements, err
 }

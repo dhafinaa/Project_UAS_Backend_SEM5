@@ -74,3 +74,30 @@ func (r *StudentRepository) FindByAdvisor(lecturerID string) ([]model.Student, e
 
 	return list, nil
 }
+
+
+// Digunakan oleh Dosen Wali
+func (r *StudentRepository) FindByAdvisorID(advisorID string) ([]string, error) {
+	query := `
+		SELECT id
+		FROM students
+		WHERE advisor_id = $1
+	`
+
+	rows, err := r.DB.Query(query, advisorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var studentIDs []string
+	for rows.Next() {
+		var id string
+		rows.Scan(&id)
+		studentIDs = append(studentIDs, id)
+	}
+
+	return studentIDs, nil
+}
+
+

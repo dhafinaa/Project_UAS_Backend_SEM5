@@ -19,6 +19,7 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database) {
 	authRepo := repository.NewAuthRepository(pg)
 	studentRepo := &repository.StudentRepository{DB: pg}
 	achRepo := repository.NewAchievementRepository(mongoDb, pg)
+	lecturerRepo := repository.NewLecturerRepository(pg)
 
 
 	// -------------------------------------------
@@ -26,7 +27,7 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database) {
 	// -------------------------------------------
 	authService := service.NewAuthService(authRepo)         
 	achievementService := service.NewAchievementService(achRepo, studentRepo) 
-	lecturerService := service.NewLecturerService(studentRepo, achRepo)
+	lecturerService := service.NewLecturerService(studentRepo, achRepo, lecturerRepo)
 
 	// -------------------------------------------
 	// AUTH ROUTES

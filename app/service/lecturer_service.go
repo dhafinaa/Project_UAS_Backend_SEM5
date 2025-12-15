@@ -13,41 +13,54 @@ import (
 type LecturerService struct {
 	StudentRepo     *repository.StudentRepository
 	AchievementRepo *repository.AchievementRepository
+	LecturerRepo  *repository.LecturerRepository
 }
 
-func NewLecturerService(sRepo *repository.StudentRepository, aRepo *repository.AchievementRepository) *LecturerService {
+func NewLecturerService(sRepo *repository.StudentRepository, aRepo *repository.AchievementRepository, lRepo *repository.LecturerRepository) *LecturerService {
 	return &LecturerService{
 		StudentRepo:     sRepo,
 		AchievementRepo: aRepo,
+		LecturerRepo: lRepo,
 	}
 }
 
 // GET /lecturer/advisees
 func (s *LecturerService) GetStudentAchievements(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(string)
 
-	lecturerID := c.Locals("userID")
-	if lecturerID == nil {
-		return fiber.NewError(fiber.StatusUnauthorized, "no user")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// load mahasiswa bimbingan
-	students, err := s.StudentRepo.FindByAdvisor(lecturerID.(string))
+	// 1. Ambil lecturer.id dari users.id
+	lecturerID, err := s.LecturerRepo.FindByUserID(userID)
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		return fiber.NewError(404, "lecturer not found")
 	}
 
-	response := make(map[string][]model.Achievement)
+	// 2. Ambil mahasiswa bimbingan
+	students, err := s.StudentRepo.FindByAdvisor(lecturerID)
+	if err != nil {
+		return fiber.NewError(500, err.Error())
+	}
 
+	if len(students) == 0 {
+		return c.JSON([]model.Achievement{})
+	}
+
+	// 3. Ambil ID mahasiswa
+	var studentIDs []string
 	for _, st := range students {
-		achievements, _ := s.AchievementRepo.ListByStudent(ctx, st.ID)
-		response[st.ID] = achievements
+		studentIDs = append(studentIDs, st.ID)
 	}
 
-	return c.JSON(response)
+	// 4. Ambil achievement SUBMITTED
+	achievements, err := s.AchievementRepo.
+		ListSubmittedByStudents(c.Context(), studentIDs)
+	if err != nil {
+		return fiber.NewError(500, err.Error())
+	}
+
+	return c.JSON(achievements)
 }
+
+
 
 // PUT /lecturer/achievements/:id/verify
 func (s *LecturerService) VerifyAchievement(c *fiber.Ctx) error {
