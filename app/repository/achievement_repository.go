@@ -369,3 +369,33 @@ func (r *AchievementRepository) ListSubmittedByStudents(
 
 	return achievements, err
 }
+
+
+func (r *AchievementRepository) VerifyAchievement(
+	ctx context.Context,
+	mongoAchievementID string,
+	lecturerID string,
+) error {
+
+	query := `
+		UPDATE achievement_references
+		SET status = 'verified',
+		    verified_by = $2,
+		    verified_at = NOW(),
+		    updated_at = NOW()
+		WHERE mongo_achievement_id = $1
+		  AND status = 'submitted'
+	`
+
+	res, err := r.SqlDB.ExecContext(ctx, query, mongoAchievementID, lecturerID)
+	if err != nil {
+		return err
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return errors.New("achievement not in submitted status or not found")
+	}
+
+	return nil
+}

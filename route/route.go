@@ -62,8 +62,8 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database) {
 	)
 
 	lecturer.Get("/advisees", middleware.PermissionRequired("advisee.read"), lecturerService.GetStudentAchievements)
-	lecturer.Put("/achievements/:id/verify", middleware.PermissionRequired("achievement.verify"), lecturerService.VerifyAchievement)
-	lecturer.Put("/achievements/:id/reject", middleware.PermissionRequired("achievement.reject"), lecturerService.RejectAchievement)
+	lecturer.Post("/achievements/:id/verify", middleware.PermissionRequired("achievement.verify"), lecturerService.VerifyAchievement)
+	lecturer.Post("/achievements/:id/reject", middleware.PermissionRequired("achievement.reject"), lecturerService.RejectAchievement)
 
 
 

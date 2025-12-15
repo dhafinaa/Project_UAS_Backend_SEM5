@@ -64,18 +64,32 @@ func (s *LecturerService) GetStudentAchievements(c *fiber.Ctx) error {
 
 // PUT /lecturer/achievements/:id/verify
 func (s *LecturerService) VerifyAchievement(c *fiber.Ctx) error {
+	achID := c.Params("id")
+	userID := c.Locals("userID").(string)
 
-	id := c.Params("id")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	// 1. Ambil lecturer_id dari user_id
+	lecturerID, err := s.LecturerRepo.FindByUserID(userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "lecturer not found")
+	}
 
-	err := s.AchievementRepo.UpdateStatusByID(ctx, id, "verified")
+	// 2. Verify achievement (PostgreSQL only)
+	err = s.AchievementRepo.VerifyAchievement(
+		c.Context(),
+		achID,
+		lecturerID,
+	)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
-	return c.JSON(fiber.Map{"message": "Achievement verified"})
+	return c.JSON(fiber.Map{
+		"message":        "achievement verified",
+		"achievement_id": achID,
+		"status":         "verified",
+	})
 }
+
 
 // PUT /lecturer/achievements/:id/reject
 func (s *LecturerService) RejectAchievement(c *fiber.Ctx) error {
@@ -91,3 +105,4 @@ func (s *LecturerService) RejectAchievement(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"message": "Achievement rejected"})
 }
+
