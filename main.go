@@ -9,6 +9,7 @@ import (
 
 	"PROJECT_UAS/database"
 	"PROJECT_UAS/route"
+	"PROJECT_UAS/middleware"
 )
 
 func main() {
@@ -34,14 +35,14 @@ func main() {
 	// RUN MIGRATION (mengisi users, roles, dll)
 	// ==============================
 	// database.RunMigration(postgresDB)
-
+	blacklist := middleware.NewTokenBlacklist()
 	// ==============================
 	// START FIBER APP
 	// ==============================
 	app := fiber.New()
 
 	// kirim postgres ke route
-	route.RegisterRoutes(app, postgresDB, mongoDB)
+	route.RegisterRoutes(app, postgresDB, mongoDB, blacklist)
 
 	// ==============================
 	// RUN SERVER
@@ -53,4 +54,5 @@ func main() {
 
 	log.Println("Server running at http://localhost:" + port)
 	app.Listen(":" + port)
+	
 }

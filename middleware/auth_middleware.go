@@ -24,7 +24,10 @@ func extractToken(header string) (string, error) {
 }
 
 /* AUTH REQUIRED — sesuai FR-002 langkah 1–3 */
-func AuthRequired(authRepo *repository.AuthRepository) fiber.Handler {
+func AuthRequired(
+	authRepo *repository.AuthRepository,
+	blacklist *TokenBlacklist,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 
 		raw := c.Get("Authorization")
@@ -33,17 +36,23 @@ func AuthRequired(authRepo *repository.AuthRepository) fiber.Handler {
 			return fiber.NewError(fiber.StatusUnauthorized, err.Error())
 		}
 
+		// 🔒 cek blacklist
+		if blacklist.IsBlacklisted(tokenString) {
+			return fiber.NewError(fiber.StatusUnauthorized, "token revoked")
+		}
+
 		claims, err := helper.ParseToken(tokenString)
 		if err != nil {
 			return fiber.NewError(fiber.StatusUnauthorized, "invalid or expired token")
 		}
 
-		// Step 3 in SRS: load permissions from DB using ROLE NAME
 		perms, err := authRepo.GetPermissionsByRoleName(claims.Role)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, "failed loading permissions")
 		}
 
+		// ✅ SIMPAN KE LOCALS
+		c.Locals("token", tokenString)
 		c.Locals("userID", claims.ID)
 		c.Locals("role", claims.Role)
 		c.Locals("permissions", perms)
@@ -51,6 +60,7 @@ func AuthRequired(authRepo *repository.AuthRepository) fiber.Handler {
 		return c.Next()
 	}
 }
+
 
 /* ROLE REQUIRED */
 func RoleRequired(required string) fiber.Handler {

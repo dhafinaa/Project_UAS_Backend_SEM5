@@ -1,6 +1,8 @@
 package service
 
 import (
+
+	"PROJECT_UAS/middleware"
 	"PROJECT_UAS/app/model"
 	"PROJECT_UAS/app/repository"
 	"PROJECT_UAS/helper"
@@ -10,10 +12,11 @@ import (
 
 type AuthService struct {
 	Repo *repository.AuthRepository
+	blacklist *middleware.TokenBlacklist
 }
 
-func NewAuthService(repo *repository.AuthRepository) *AuthService {
-	return &AuthService{Repo: repo}
+func NewAuthService(repo *repository.AuthRepository, blacklist *middleware.TokenBlacklist) *AuthService {
+	return &AuthService{Repo: repo, blacklist: blacklist,}
 }
 
 //
@@ -118,5 +121,24 @@ func (s *AuthService) RefreshToken(c *fiber.Ctx) error {
 // LOGOUT (dummy sesuai SRS)
 // ------------------------------------------------------
 func (s *AuthService) Logout(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "logout success"})
+
+	tokenAny := c.Locals("token")
+	if tokenAny == nil {
+		return fiber.NewError(fiber.StatusUnauthorized, "token not found")
+	}
+
+	token := tokenAny.(string)
+
+	claims, err := helper.ParseToken(token)
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnauthorized, "invalid token")
+	}
+
+	// blacklist sampai expired
+	s.blacklist.Add(token, claims.ExpiresAt.Time)
+
+	return c.JSON(fiber.Map{
+		"message": "logout success",
+	})
 }
+
