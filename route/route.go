@@ -16,20 +16,21 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database) {
 	// -------------------------------------------
 	// REPOSITORIES
 	// -------------------------------------------
-	authRepo := repository.NewAuthRepository(pg)
-	studentRepo := &repository.StudentRepository{DB: pg}
-	achRepo := repository.NewAchievementRepository(mongoDb, pg)
+	authRepo     := repository.NewAuthRepository(pg)
+	studentRepo  := &repository.StudentRepository{DB: pg}
+	achRepo      := repository.NewAchievementRepository(mongoDb, pg)
 	lecturerRepo := repository.NewLecturerRepository(pg)
+
 
 
 	// -------------------------------------------
 	// SERVICES
 	// -------------------------------------------
-	authService := service.NewAuthService(authRepo)         
-	achievementService := service.NewAchievementService(achRepo, studentRepo) 
-	lecturerService := service.NewLecturerService(studentRepo, achRepo, lecturerRepo)
-	reportService := service.NewReportService(achRepo)
+authService := service.NewAuthService(authRepo)
 
+	achievementService := service.NewAchievementService(achRepo,studentRepo,)
+	lecturerService := service.NewLecturerService(studentRepo,achRepo,lecturerRepo,)
+	reportService := service.NewReportService(studentRepo,achRepo,lecturerRepo,)
 
 	// -------------------------------------------
 	// AUTH ROUTES
@@ -54,29 +55,28 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database) {
 	student.Delete("/achievements/:id",middleware.PermissionRequired("achievement.delete"), achievementService.DeleteAchievement)
 	student.Post("/achievements/:id/attachments", middleware.PermissionRequired("achievement.attachment.upload"), achievementService.UploadAttachment)
 
-
-	// -------------------------------------------
-	// LECTURER ROUTES
-	// -----------------------------------------x--
-	lecturer := app.Group("/lecturer",
-		middleware.AuthRequired(authRepo),
-		middleware.RoleRequired("Dosen Wali"),
-	)
-
-	lecturer.Get("/advisees", middleware.PermissionRequired("advisee.read"), lecturerService.GetStudentAchievements)
-	lecturer.Post("/achievements/:id/verify", middleware.PermissionRequired("achievement.verify"), lecturerService.VerifyAchievement)
-	lecturer.Post("/achievements/:id/reject", middleware.PermissionRequired("achievement.reject"), lecturerService.RejectAchievement)
-
-
-// REPORT ROUTES
 // -------------------------------------------
-reports := app.Group("/reports",
-    middleware.AuthRequired(authRepo),
-)
+// LECTURER ROUTES
+// -------------------------------------------
+lecturer := app.Group("/lecturer",middleware.AuthRequired(authRepo),middleware.RoleRequired("Dosen Wali"),)
 
-// Statistik umum (Admin / Dosen Wali)
-reports.Get("/statistics",middleware.PermissionRequired("report.read"),reportService.GetStatistics,)
-reports.Get( "/student/:id", middleware.PermissionRequired("report.read"), reportService.GetStudentReport,)
+lecturer.Get("/advisees",middleware.PermissionRequired("advisee.read"),lecturerService.GetStudentAchievements,)
+lecturer.Post("/achievements/:id/verify",middleware.PermissionRequired("achievement.verify"),lecturerService.VerifyAchievement,)
+lecturer.Post("/achievements/:id/reject",middleware.PermissionRequired("achievement.reject"),lecturerService.RejectAchievement,)
+
+// REPORT (DOSEN WALI)
+lecturer.Get("/reports/statistics",middleware.PermissionRequired("report.read"),reportService.GetStatistics,)
+lecturer.Get("/reports/student/:id",middleware.PermissionRequired("report.read"),reportService.GetStudentReport,)
+
+
+// -------------------------------------------
+// ADMIN ROUTES
+// -------------------------------------------
+admin := app.Group("/admin",middleware.AuthRequired(authRepo),middleware.RoleRequired("Admin"),)
+
+// REPORT (ADMIN)
+admin.Get("/reports/statistics",middleware.PermissionRequired("report.read.admin"),reportService.GetStatistics,)
+admin.Get("/reports/student/:id",middleware.PermissionRequired("report.read.admin"),reportService.GetStudentReport,)
 
 
 }

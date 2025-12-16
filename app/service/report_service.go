@@ -1,40 +1,100 @@
 package service
 
 import (
-    "PROJECT_UAS/app/repository"
+	"context"
+	"time"
 
-	 "github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2"
+
+	"PROJECT_UAS/app/repository"
 )
 
 type ReportService struct {
-    AchRepo *repository.AchievementRepository
+	StudentRepo     *repository.StudentRepository
+	AchievementRepo *repository.AchievementRepository
+	LecturerRepo    *repository.LecturerRepository
 }
 
-func NewReportService(achRepo *repository.AchievementRepository) *ReportService {
-    return &ReportService{AchRepo: achRepo}
+func NewReportService(
+	sRepo *repository.StudentRepository,
+	aRepo *repository.AchievementRepository,
+	lRepo *repository.LecturerRepository,
+) *ReportService {
+	return &ReportService{
+		StudentRepo:     sRepo,
+		AchievementRepo: aRepo,
+		LecturerRepo:    lRepo,
+	}
 }
 
+//
+// GET /reports/statistics
+// Admin & Dosen Wali (pakai data yang ADA)
+//
 func (s *ReportService) GetStatistics(c *fiber.Ctx) error {
 
-    stats, err := s.AchRepo.GetStatistics(c.Context())
-    if err != nil {
-        return fiber.NewError(500, err.Error())
-    }
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-    return c.JSON(stats)
+	stats, err := s.AchievementRepo.GetStatistics(ctx)
+	if err != nil {
+		return fiber.NewError(500, err.Error())
+	}
+
+	return c.JSON(stats)
 }
 
-
+//
+// GET /reports/student/:id
+// Admin → bebas
+// Dosen wali → mahasiswa bimbingannya
+//
 func (s *ReportService) GetStudentReport(c *fiber.Ctx) error {
 
-    studentID := c.Params("id")
+	userID := c.Locals("userID").(string)
+	role := c.Locals("role").(string)
+	studentID := c.Params("id")
 
-    achievements, err := s.AchRepo.
-        GetStudentAchievementsReport(c.Context(), studentID)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-    if err != nil {
-        return fiber.NewError(500, err.Error())
-    }
+	// ================= ADMIN =================
+	if role == "Admin" {
+		data, err := s.AchievementRepo.GetStudentAchievementsReport(ctx, studentID)
+		if err != nil {
+			return fiber.NewError(500, err.Error())
+		}
+		return c.JSON(data)
+	}
 
-    return c.JSON(achievements)
+	// ================= DOSEN WALI =================
+	lecturerID, err := s.LecturerRepo.FindByUserID(userID)
+	if err != nil {
+		return fiber.NewError(403, "lecturer not found")
+	}
+
+	// cek apakah student ini bimbingannya
+	students, err := s.StudentRepo.FindByAdvisor(lecturerID)
+	if err != nil {
+		return fiber.NewError(500, err.Error())
+	}
+
+	isAdvisor := false
+	for _, st := range students {
+		if st.ID == studentID {
+			isAdvisor = true
+			break
+		}
+	}
+
+	if !isAdvisor {
+		return fiber.NewError(403, "not your student")
+	}
+
+	data, err := s.AchievementRepo.GetStudentAchievementsReport(ctx, studentID)
+	if err != nil {
+		return fiber.NewError(500, err.Error())
+	}
+
+	return c.JSON(data)
 }
