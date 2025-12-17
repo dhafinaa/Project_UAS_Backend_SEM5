@@ -30,7 +30,7 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database, blackli
 	lecturerService := service.NewLecturerService(studentRepo,achRepo,lecturerRepo,)
 	reportService := service.NewReportService(studentRepo,achRepo,lecturerRepo,)
 	userService := service.NewUserService(userRepo)
-	studentService := service.NewStudentService(studentRepo, lecturerRepo)
+	studentService := service.NewStudentService(studentRepo, lecturerRepo, achRepo)
 
 	// -------------------------------------------
 	// AUTH ROUTES
@@ -55,6 +55,7 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database, blackli
 	student.Delete("/achievements/:id",middleware.PermissionRequired("achievement.delete"), achievementService.DeleteAchievement)
 	student.Post("/achievements/:id/attachments", middleware.PermissionRequired("achievement.attachment.upload"), achievementService.UploadAttachment)
 	student.Get("/achievements/:id/history",middleware.PermissionRequired("achievement.read"),achievementService.GetAchievementHistory,)
+	// student.Get("/students/:id/achievements",middleware.PermissionRequired("student.read"),studentService.GetStudentAchievements,)
 
 	// -------------------------------------------
 	// LECTURER ROUTES
@@ -71,7 +72,7 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database, blackli
 
 	lecturer.Get("/students",middleware.PermissionRequired("student.read"),studentService.GetStudentsByAdvisor,)
 	lecturer.Get( "/students/:id",middleware.PermissionRequired("student.read"),studentService.GetStudentByID,)
-
+	// lecturer.Get("/students/:id/achievements",middleware.PermissionRequired("student.read"),studentService.GetStudentAchievements,)
 	// -------------------------------------------
 	// ADMIN ROUTES
 	// -------------------------------------------
@@ -90,5 +91,6 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database, blackli
 	admin.Get("/students",middleware.PermissionRequired("student.read"),studentService.GetAllStudents,)
 	admin.Get("/students/:id",middleware.PermissionRequired("student.read"),studentService.GetStudentByID,)
 
+	app.Get("/students/:id/achievements",middleware.AuthRequired(authRepo, blacklist),middleware.PermissionRequired("student.read.self"), studentService.GetStudentAchievements,)
 
 }

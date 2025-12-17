@@ -9,13 +9,16 @@ import (
 type StudentService struct {
 	studentRepo  *repository.StudentRepository
 	lecturerRepo *repository.LecturerRepository
+	achievementRepo *repository.AchievementRepository
+
 }
 
 func NewStudentService(
-	studentRepo *repository.StudentRepository,lecturerRepo *repository.LecturerRepository,) *StudentService {
+	studentRepo *repository.StudentRepository, lecturerRepo *repository.LecturerRepository, achievementRepo *repository.AchievementRepository) *StudentService {
 	return &StudentService{
 		studentRepo:  studentRepo,
 		lecturerRepo: lecturerRepo,
+		achievementRepo: achievementRepo,
 	}
 }
 
@@ -86,4 +89,38 @@ func (s *StudentService) GetStudentsByAdvisor(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(students)
+}
+
+func (s *StudentService) GetStudentAchievements(c *fiber.Ctx) error {
+
+    studentIDParam := c.Params("id")
+    if studentIDParam == "" {
+        return fiber.NewError(fiber.StatusBadRequest, "student id required")
+    }
+
+    userID := c.Locals("userID").(string)
+
+    student, err := s.studentRepo.FindByUserID(userID)
+    if err != nil {
+        return fiber.NewError(fiber.StatusNotFound, "student not found")
+    }
+
+    // 🔒 mahasiswa hanya boleh akses data sendiri
+    if student.ID != studentIDParam {
+        return fiber.NewError(
+            fiber.StatusForbidden,
+            "cannot access other student's achievements",
+        )
+    }
+
+    achievements, err := s.achievementRepo.
+        FindByStudentID(c.Context(), student.ID)
+    if err != nil {
+        return fiber.NewError(
+            fiber.StatusInternalServerError,
+            "failed loading achievements",
+        )
+    }
+
+    return c.JSON(achievements)
 }
