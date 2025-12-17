@@ -7,6 +7,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
 
+	fiberSwagger "github.com/swaggo/fiber-swagger"
+	_ "PROJECT_UAS/docs" 
+
 	"PROJECT_UAS/database"
 	"PROJECT_UAS/route"
 	"PROJECT_UAS/middleware"
@@ -21,27 +24,30 @@ func main() {
 	}
 
 	// ==============================
-	// CONNECT MONGODB (required)
+	// CONNECT MONGODB
 	// ==============================
 	mongoDB := database.ConnectMongo()
-	_ = mongoDB // nanti dipakai di achievement repo
 
 	// ==============================
-	// CONNECT POSTGRES (required)
+	// CONNECT POSTGRES
 	// ==============================
 	postgresDB := database.ConnectPostgres()
 
-	// ==============================
-	// RUN MIGRATION (mengisi users, roles, dll)
-	// ==============================
-	// database.RunMigration(postgresDB)
 	blacklist := middleware.NewTokenBlacklist()
+
 	// ==============================
 	// START FIBER APP
 	// ==============================
 	app := fiber.New()
 
-	// kirim postgres ke route
+	// ==============================
+	// SWAGGER ROUTE (WAJIB BIAR GA ERROR)
+	// ==============================
+	app.Get("/swagger/*", fiberSwagger.WrapHandler)
+
+	// ==============================
+	// REGISTER ROUTES
+	// ==============================
 	route.RegisterRoutes(app, postgresDB, mongoDB, blacklist)
 
 	// ==============================
@@ -53,6 +59,7 @@ func main() {
 	}
 
 	log.Println("Server running at http://localhost:" + port)
-	app.Listen(":" + port)
-	
+	log.Println("Swagger running at http://localhost:" + port + "/swagger/index.html")
+
+	log.Fatal(app.Listen(":" + port))
 }
