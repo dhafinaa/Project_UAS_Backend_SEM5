@@ -90,6 +90,8 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database, blackli
 	admin.Put("/users/:id/role",middleware.PermissionRequired("user.update.role"),userService.UpdateUserRole,)
 	admin.Get("/students",middleware.PermissionRequired("student.read"),studentService.GetAllStudents,)
 	admin.Get("/students/:id",middleware.PermissionRequired("student.read"),studentService.GetStudentByID,)
+	admin.Put("/students/:id/advisor",middleware.PermissionRequired("student.update.advisor"),studentService.UpdateStudentAdvisor,)
+
 
 	app.Get("/students/:id/achievements",middleware.AuthRequired(authRepo, blacklist),middleware.PermissionRequired("student.read.self"), studentService.GetStudentAchievements,)
 

@@ -136,4 +136,27 @@ func (r *StudentRepository) FindAll() ([]model.Student, error) {
 	return list, nil
 }
 
+func (r *StudentRepository) UpdateAdvisor(
+    studentID string,
+    advisorID string,
+) error {
+
+    query := `
+        UPDATE students
+        SET advisor_id = $1
+        WHERE id = $2
+    `
+
+    res, err := r.DB.Exec(query, advisorID, studentID)
+    if err != nil {
+        return err
+    }
+
+    rows, _ := res.RowsAffected()
+    if rows == 0 {
+        return sql.ErrNoRows
+    }
+
+    return nil
+}
 

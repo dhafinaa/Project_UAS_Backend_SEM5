@@ -124,3 +124,56 @@ func (s *StudentService) GetStudentAchievements(c *fiber.Ctx) error {
 
     return c.JSON(achievements)
 }
+
+func (s *StudentService) UpdateStudentAdvisor(c *fiber.Ctx) error {
+
+    studentID := c.Params("id")
+    if studentID == "" {
+        return fiber.NewError(
+            fiber.StatusBadRequest,
+            "student id is required",
+        )
+    }
+
+    var req struct {
+        AdvisorID string `json:"advisor_id"`
+    }
+
+    if err := c.BodyParser(&req); err != nil {
+        return fiber.NewError(
+            fiber.StatusBadRequest,
+            "invalid request body",
+        )
+    }
+
+    if req.AdvisorID == "" {
+        return fiber.NewError(
+            fiber.StatusBadRequest,
+            "advisor_id is required",
+        )
+    }
+
+    // pastikan student ada
+    _, err := s.studentRepo.FindByID(studentID)
+    if err != nil {
+        return fiber.NewError(
+            fiber.StatusNotFound,
+            "student not found",
+        )
+    }
+
+    // update advisor
+    err = s.studentRepo.UpdateAdvisor(studentID, req.AdvisorID)
+    if err != nil {
+        return fiber.NewError(
+            fiber.StatusInternalServerError,
+            "failed updating advisor",
+        )
+    }
+
+    return c.JSON(fiber.Map{
+        "message":    "advisor updated successfully",
+        "student_id": studentID,
+        "advisor_id": req.AdvisorID,
+    })
+}
