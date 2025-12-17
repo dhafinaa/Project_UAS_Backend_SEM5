@@ -20,7 +20,8 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database, blackli
 	studentRepo  := &repository.StudentRepository{DB: pg}
 	achRepo      := repository.NewAchievementRepository(mongoDb, pg)
 	lecturerRepo := repository.NewLecturerRepository(pg)
-	
+	userRepo := repository.NewUserRepository(pg)
+
 	// -------------------------------------------
 	// SERVICES
 	// -------------------------------------------
@@ -28,6 +29,7 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database, blackli
 	achievementService := service.NewAchievementService(achRepo,studentRepo,)
 	lecturerService := service.NewLecturerService(studentRepo,achRepo,lecturerRepo,)
 	reportService := service.NewReportService(studentRepo,achRepo,lecturerRepo,)
+	userService := service.NewUserService(userRepo)
 
 	// -------------------------------------------
 	// AUTH ROUTES
@@ -52,27 +54,34 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database, blackli
 	student.Delete("/achievements/:id",middleware.PermissionRequired("achievement.delete"), achievementService.DeleteAchievement)
 	student.Post("/achievements/:id/attachments", middleware.PermissionRequired("achievement.attachment.upload"), achievementService.UploadAttachment)
 
-// -------------------------------------------
-// LECTURER ROUTES
-// -------------------------------------------
-lecturer := app.Group("/lecturer",middleware.AuthRequired(authRepo, blacklist),middleware.RoleRequired("Dosen Wali"),)
+	// -------------------------------------------
+	// LECTURER ROUTES
+	// -------------------------------------------
+	lecturer := app.Group("/lecturer",middleware.AuthRequired(authRepo, blacklist),middleware.RoleRequired("Dosen Wali"),)
 
-lecturer.Get("/advisees",middleware.PermissionRequired("advisee.read"),lecturerService.GetStudentAchievements,)
-lecturer.Post("/achievements/:id/verify",middleware.PermissionRequired("achievement.verify"),lecturerService.VerifyAchievement,)
-lecturer.Post("/achievements/:id/reject",middleware.PermissionRequired("achievement.reject"),lecturerService.RejectAchievement,)
+	lecturer.Get("/advisees",middleware.PermissionRequired("advisee.read"),lecturerService.GetStudentAchievements,)
+	lecturer.Post("/achievements/:id/verify",middleware.PermissionRequired("achievement.verify"),lecturerService.VerifyAchievement,)
+	lecturer.Post("/achievements/:id/reject",middleware.PermissionRequired("achievement.reject"),lecturerService.RejectAchievement,)
 
-// REPORT (DOSEN WALI)
-lecturer.Get("/reports/statistics",middleware.PermissionRequired("report.read"),reportService.GetStatistics,)
-lecturer.Get("/reports/student/:id",middleware.PermissionRequired("report.read"),reportService.GetStudentReport,)
+	// REPORT (DOSEN WALI)
+	lecturer.Get("/reports/statistics",middleware.PermissionRequired("report.read"),reportService.GetStatistics,)
+	lecturer.Get("/reports/student/:id",middleware.PermissionRequired("report.read"),reportService.GetStudentReport,)
 
 
-// -------------------------------------------
-// ADMIN ROUTES
-// -------------------------------------------
-admin := app.Group("/admin",middleware.AuthRequired(authRepo, blacklist),middleware.RoleRequired("Admin"),)
+	// -------------------------------------------
+	// ADMIN ROUTES
+	// -------------------------------------------
+	admin := app.Group("/admin",middleware.AuthRequired(authRepo, blacklist),middleware.RoleRequired("Admin"),)
 
-// REPORT (ADMIN)
-admin.Get("/reports/statistics",middleware.PermissionRequired("report.read.admin"),reportService.GetStatistics,)
-admin.Get("/reports/student/:id",middleware.PermissionRequired("report.read.admin"),reportService.GetStudentReport,)
+	// REPORT (ADMIN)
+	admin.Get("/reports/statistics",middleware.PermissionRequired("report.read.admin"),reportService.GetStatistics,)
+	admin.Get("/reports/student/:id",middleware.PermissionRequired("report.read.admin"),reportService.GetStudentReport,)
+	// USERS (ADMIN)
+	admin.Get("/users",middleware.PermissionRequired("user.read"),userService.GetUsers,)
+	admin.Get("/users/:id",middleware.PermissionRequired("user.read"),userService.GetUserByID,)
+	admin.Post("/users",middleware.PermissionRequired("user.create"),userService.CreateUser,)
+	admin.Put("/users/:id",middleware.PermissionRequired("user.update"),userService.UpdateUser,)
+	admin.Delete("/users/:id",middleware.PermissionRequired("user.delete"),userService.DeleteUser,)
+	admin.Put("/users/:id/role",middleware.PermissionRequired("user.update.role"),userService.UpdateUserRole,)
 
 }

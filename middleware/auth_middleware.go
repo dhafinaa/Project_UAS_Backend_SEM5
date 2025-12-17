@@ -24,10 +24,7 @@ func extractToken(header string) (string, error) {
 }
 
 /* AUTH REQUIRED — sesuai FR-002 langkah 1–3 */
-func AuthRequired(
-	authRepo *repository.AuthRepository,
-	blacklist *TokenBlacklist,
-) fiber.Handler {
+func AuthRequired(authRepo *repository.AuthRepository, blacklist *TokenBlacklist, ) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 
 		raw := c.Get("Authorization")

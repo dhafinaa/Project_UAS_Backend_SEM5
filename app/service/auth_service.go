@@ -116,10 +116,8 @@ func (s *AuthService) RefreshToken(c *fiber.Ctx) error {
 	})
 }
 
-//
-// ------------------------------------------------------
-// LOGOUT (dummy sesuai SRS)
-// ------------------------------------------------------
+//logout
+
 func (s *AuthService) Logout(c *fiber.Ctx) error {
 
 	tokenAny := c.Locals("token")
