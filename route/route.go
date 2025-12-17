@@ -54,6 +54,7 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database, blackli
 	student.Post("/achievements/:id/submit", middleware.PermissionRequired("achievement.submit"), achievementService.SubmitAchievement)
 	student.Delete("/achievements/:id",middleware.PermissionRequired("achievement.delete"), achievementService.DeleteAchievement)
 	student.Post("/achievements/:id/attachments", middleware.PermissionRequired("achievement.attachment.upload"), achievementService.UploadAttachment)
+	student.Get("/achievements/:id/history",middleware.PermissionRequired("achievement.read"),achievementService.GetAchievementHistory,)
 
 	// -------------------------------------------
 	// LECTURER ROUTES

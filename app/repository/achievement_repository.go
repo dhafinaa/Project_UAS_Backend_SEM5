@@ -509,3 +509,40 @@ func (r *AchievementRepository) GetStudentAchievementsReport(
     return achievements, err
 }
 
+// History status achievement
+func (r *AchievementRepository) GetAchievementHistory(
+	ctx context.Context,
+	mongoAchievementID string,
+) ([]map[string]interface{}, error) {
+
+	query := `
+		SELECT status, submitted_at, verified_at, updated_at
+		FROM achievement_references
+		WHERE mongo_achievement_id = $1
+		ORDER BY updated_at ASC
+	`
+
+	rows, err := r.SqlDB.QueryContext(ctx, query, mongoAchievementID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var history []map[string]interface{}
+
+	for rows.Next() {
+		var status string
+		var submittedAt, verifiedAt, updatedAt *time.Time
+
+		rows.Scan(&status, &submittedAt, &verifiedAt, &updatedAt)
+
+		history = append(history, map[string]interface{}{
+			"status":        status,
+			"submitted_at":  submittedAt,
+			"verified_at":   verifiedAt,
+			"updated_at":    updatedAt,
+		})
+	}
+
+	return history, nil
+}

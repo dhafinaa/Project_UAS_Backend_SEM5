@@ -302,3 +302,13 @@ func (s *AchievementService) DeleteAchievement(c *fiber.Ctx) error {
 	})
 }
 
+func (s *AchievementService) GetAchievementHistory(c *fiber.Ctx) error {
+	achID := c.Params("id")
+
+	history, err := s.AchRepo.GetAchievementHistory(c.Context(), achID)
+	if err != nil {
+		return fiber.NewError(500, err.Error())
+	}
+
+	return c.JSON(history)
+}
