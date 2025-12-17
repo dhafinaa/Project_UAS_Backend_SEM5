@@ -301,3 +301,4 @@ func (s *AchievementService) DeleteAchievement(c *fiber.Ctx) error {
 		"status":         "deleted",
 	})
 }
+

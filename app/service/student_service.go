@@ -1,65 +1,89 @@
 package service
 
 import (
-	"errors"
-	"PROJECT_UAS/app/model"
+	"github.com/gofiber/fiber/v2"
+
 	"PROJECT_UAS/app/repository"
 )
 
 type StudentService struct {
-	studentRepo *repository.StudentRepository
+	studentRepo  *repository.StudentRepository
+	lecturerRepo *repository.LecturerRepository
 }
 
-func NewStudentService(studentRepo *repository.StudentRepository) *StudentService {
+func NewStudentService(
+	studentRepo *repository.StudentRepository,lecturerRepo *repository.LecturerRepository,) *StudentService {
 	return &StudentService{
-		studentRepo: studentRepo,
+		studentRepo:  studentRepo,
+		lecturerRepo: lecturerRepo,
 	}
+}
+
+
+// =============================
+// GET ALL STUDENTS (ADMIN)
+// =============================
+func (s *StudentService) GetAllStudents(c *fiber.Ctx) error {
+
+	students, err := s.studentRepo.FindAll()
+	if err != nil {
+		return fiber.NewError(
+			fiber.StatusInternalServerError,
+			"failed to load students",
+		)
+	}
+
+	return c.JSON(students)
 }
 
 // =============================
 // GET STUDENT BY ID
 // =============================
-func (s *StudentService) GetByID(id string) (*model.Student, error) {
+func (s *StudentService) GetStudentByID(c *fiber.Ctx) error {
+
+	id := c.Params("id")
 	if id == "" {
-		return nil, errors.New("id tidak boleh kosong")
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"id is required",
+		)
 	}
 
 	student, err := s.studentRepo.FindByID(id)
 	if err != nil {
-		return nil, err
+		return fiber.NewError(
+			fiber.StatusNotFound,
+			"student not found",
+		)
 	}
 
-	return student, nil
+	return c.JSON(student)
 }
 
 // =============================
-// GET STUDENT BY USER ID
+// GET STUDENTS BY ADVISOR (DOSEN WALI)
 // =============================
-func (s *StudentService) GetByUserID(userID string) (*model.Student, error) {
-	if userID == "" {
-		return nil, errors.New("user_id tidak boleh kosong")
-	}
+func (s *StudentService) GetStudentsByAdvisor(c *fiber.Ctx) error {
 
-	student, err := s.studentRepo.FindByUserID(userID)
+	userID := c.Locals("userID").(string)
+
+	// 🔥 STEP 1: users.id → lecturers.id
+	lecturerID, err := s.lecturerRepo.FindByUserID(userID)
 	if err != nil {
-		return nil, err
+		return fiber.NewError(
+			fiber.StatusNotFound,
+			"lecturer not found",
+		)
 	}
 
-	return student, nil
-}
-
-// =============================
-// GET ALL STUDENTS BY ADVISOR / LECTURER
-// =============================
-func (s *StudentService) GetStudentsByAdvisor(lecturerID string) ([]model.Student, error) {
-	if lecturerID == "" {
-		return nil, errors.New("advisor_id tidak boleh kosong")
-	}
-
+	// 🔥 STEP 2: pakai lecturers.id
 	students, err := s.studentRepo.FindByAdvisor(lecturerID)
 	if err != nil {
-		return nil, err
+		return fiber.NewError(
+			fiber.StatusInternalServerError,
+			"failed loading students",
+		)
 	}
 
-	return students, nil
+	return c.JSON(students)
 }

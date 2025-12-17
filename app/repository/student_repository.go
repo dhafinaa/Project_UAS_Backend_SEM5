@@ -100,4 +100,40 @@ func (r *StudentRepository) FindByAdvisorID(advisorID string) ([]string, error) 
 	return studentIDs, nil
 }
 
+// =============================
+// GET ALL STUDENTS (ADMIN)
+// =============================
+func (r *StudentRepository) FindAll() ([]model.Student, error) {
+
+	rows, err := r.DB.Query(`
+		SELECT id, user_id, student_id, program_study, academic_year, advisor_id, created_at
+		FROM students
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []model.Student
+
+	for rows.Next() {
+		var s model.Student
+		err := rows.Scan(
+			&s.ID,
+			&s.User_id,
+			&s.Student_id,
+			&s.Program_study,
+			&s.Academic_year,
+			&s.Advisor_id,
+			&s.Created_at,
+		)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, s)
+	}
+
+	return list, nil
+}
+
 

@@ -30,6 +30,7 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database, blackli
 	lecturerService := service.NewLecturerService(studentRepo,achRepo,lecturerRepo,)
 	reportService := service.NewReportService(studentRepo,achRepo,lecturerRepo,)
 	userService := service.NewUserService(userRepo)
+	studentService := service.NewStudentService(studentRepo, lecturerRepo)
 
 	// -------------------------------------------
 	// AUTH ROUTES
@@ -67,6 +68,8 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database, blackli
 	lecturer.Get("/reports/statistics",middleware.PermissionRequired("report.read"),reportService.GetStatistics,)
 	lecturer.Get("/reports/student/:id",middleware.PermissionRequired("report.read"),reportService.GetStudentReport,)
 
+	lecturer.Get("/students",middleware.PermissionRequired("student.read"),studentService.GetStudentsByAdvisor,)
+	lecturer.Get( "/students/:id",middleware.PermissionRequired("student.read"),studentService.GetStudentByID,)
 
 	// -------------------------------------------
 	// ADMIN ROUTES
@@ -83,5 +86,8 @@ func RegisterRoutes(app *fiber.App, pg *sql.DB, mongoDb *mongo.Database, blackli
 	admin.Put("/users/:id",middleware.PermissionRequired("user.update"),userService.UpdateUser,)
 	admin.Delete("/users/:id",middleware.PermissionRequired("user.delete"),userService.DeleteUser,)
 	admin.Put("/users/:id/role",middleware.PermissionRequired("user.update.role"),userService.UpdateUserRole,)
+	admin.Get("/students",middleware.PermissionRequired("student.read"),studentService.GetAllStudents,)
+	admin.Get("/students/:id",middleware.PermissionRequired("student.read"),studentService.GetStudentByID,)
+
 
 }
